@@ -1,0 +1,45 @@
+
+INCL = -I./ \
+       -I/opt/UICS/include \
+			 -I/opt/labdevice/include
+
+LIB = -L/opt/UICS/lib -luics \
+      -L/opt/labdevice/lib -llabdev \
+			-lpthread \
+			-lprometheus-cpp-core \
+			-lprometheus-cpp-pull
+
+TARGET = miss.piggy
+BASEPATH = /opt/labdevice
+
+BIN = $(BASEPATH)/bin
+cfgpath = $(BASEPATH)/config
+CFLAGS = -std=c++17 -DCONFPATH='"$(cfgpath)"' 
+
+
+lib:
+	@echo "re-installing labdevice library"
+	@cd ../labdevice.lib/ && make clean all install
+
+OBJS =  main.o \
+				mks972b/mks972b.o \
+				labdevices.o \
+				devicesManager.o \
+				devManagerCtrl.o \
+				sunpower/sunpower.o \
+				lakeshore/lakeshore336.o
+
+%.o: %.cpp
+	g++ $(CFLAGS) $(INCL) -c $< -o $@ 
+	
+	 
+all: lib $(OBJS) 
+	g++ $(CFLAGS) $(OBJS) -o $(TARGET) $(INCL) $(LIB)
+
+clean:
+	rm -f $(OBJS)
+	rm -f $(TARGET)
+install:
+	@cd ./config && make install
+	@cp $(TARGET) $(BASEPATH)/bin/
+	@cp $(TARGET).sh ~/.local/bin/$(TARGET)
