@@ -1,13 +1,18 @@
 #include "lakeshore336.h"
 #include "labdevices.h"
-lakeshore336::lakeshore336(std::string devicename, bool extended = true,
+lakeshore336::lakeshore336(std::string IP, int port, std::string devicename,
+                           bool extended = true,
                            prometheus::Registry *registry = nullptr)
     : ethernet_device(devicename, registry)
 /*
  * Open socket communication.
  */
 {
+  if (!connect(IP, port)) {
 
+    std::cout << "[debug] Unable to open connection with lakeshore 336"
+              << std::endl;
+  }
   lakeshore336::extended = extended;
   addGauge("A", "Temperature input A (kelvin)");
 
@@ -48,8 +53,13 @@ lakeshore336::lakeshore336(std::string configfile, std::string devicename = "",
   lakeshore336::extended = extended;
   int port = cfg_get_int(configfile, "LSPORT", 7777);
   std::string IP = cfg_get_string(configfile, "LSIP", "127.0.0.1");
-std::cout<<"[debug] "<<IP<<std::endl;
+  std::cout << "[debug] " << IP << std::endl;
   // timeout in second
+  if (!connect(IP, port)) {
+
+    std::cout << "[debug] Unable to open connection with lakeshore 336"
+              << std::endl;
+  }
 
   addGauge("A", "Temperature input A (kelvin)");
 

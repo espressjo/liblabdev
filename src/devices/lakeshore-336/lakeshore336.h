@@ -9,13 +9,13 @@
 #include <string.h> /* strcpy, strlen */
 #include <string>
 #include <termios.h> /* ioctl */
-#include <unistd.h> /* read, write, close */
 #include <uics/uics_config.h>
+#include <unistd.h> /* read, write, close */
 class lakeshore336 : public ethernet_device {
 public:
   lakeshore336(std::string configfile, std::string devicename, int timeout,
                bool extended, prometheus::Registry *registry);
-  lakeshore336(std::string devicename, bool extended,
+  lakeshore336(std::string IP, int port, std::string devicename, bool extended,
                prometheus::Registry *registry);
 
   void close(void);
