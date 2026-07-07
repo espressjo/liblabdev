@@ -33,7 +33,8 @@ void dummydevice::update() {
   double value = 0.0;
   if (read_dummy(&value, 0.6) == OK) {
     online = true;
-    setGauge("Pressure", value);
+    setGauge("Dummy", value);
+std::cout<<"[debug] setting dummy gauge to"<<std::to_string(value)<<std::endl;
   } else {
     online = false;
   }
