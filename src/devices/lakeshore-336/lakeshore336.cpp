@@ -48,6 +48,7 @@ lakeshore336::lakeshore336(std::string configfile, std::string devicename = "",
   lakeshore336::extended = extended;
   int port = cfg_get_int(configfile, "LSPORT", 7777);
   std::string IP = cfg_get_string(configfile, "LSIP", "127.0.0.1");
+std::cout<<"[debug] "<<IP<<std::endl;
   // timeout in second
 
   addGauge("A", "Temperature input A (kelvin)");

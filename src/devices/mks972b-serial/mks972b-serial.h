@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h> /* strcpy, strlen */
 #include <string>
-#include <termio.h>   /* ioctl */
+#include <termios.h>   /* ioctl */
 #include <unistd.h>   /* read, write, close */
 #define DELAIMAX 5000 /* delai maximum pour l'attente en ms*/
 
