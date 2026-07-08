@@ -4,9 +4,53 @@
 #include "sunpowerDS30_t.h"
 #include <ctime>
 #include <prometheus/registry.h>
+#include <uics/uics_config.h>
 
-sunpowerDS30::sunpowerDS30(std::string port, int baudrate, std::string devicename,
-                   prometheus::Registry *registry = nullptr)
+sunpowerDS30::sunpowerDS30(std::string configfile, std::string devicename,
+                           prometheus::Registry *registry = nullptr)
+    : labdevices(devicename, registry) {
+
+  cfg_get_string(configfile, "DEVICE", "/dev/ttyACM0");
+
+  sunpowerDS30::port = cfg_get_string(configfile, "DEVICE", "/dev/ttyACM0");
+
+  sunpowerDS30::baudrate = cfg_get_int(configfile, "BAUDRATE", 9600);
+
+  ignore_cariage_return = false;
+  status = ouvrirport(port, baudrate);
+
+  /*
+   double VDC;
+    double POWER_CMD;
+    double TC;
+    double RT;
+    double WT;
+    double VrmsOutA;
+    double IrmsOutA;
+    double PA;
+    double VrmsOutB;
+    double IrmsOutB;
+    double PB;
+    */
+  timeout = -1;
+  addGauge("VDC", "DC voltage of sunpower");
+
+  addGauge("POWER_CMD", "sunpower");
+  addGauge("TC", "sunpower");
+  addGauge("RT", "sunpower");
+  addGauge("WT", "sunpower");
+  addGauge("VrmsOutA", "sunpower");
+  addGauge("IrmsOutA", "sunpower");
+  addGauge("PA", "sunpower");
+
+  addGauge("PB", "sunpower");
+  addGauge("VrmsOutB", "sunpower");
+  addGauge("IrmsOutB", "sunpower");
+}
+
+sunpowerDS30::sunpowerDS30(std::string port, int baudrate,
+                           std::string devicename,
+                           prometheus::Registry *registry = nullptr)
     : labdevices(devicename, registry) {
   sunpowerDS30::port = port;
   sunpowerDS30::baudrate = baudrate;

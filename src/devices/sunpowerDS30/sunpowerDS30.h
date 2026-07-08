@@ -16,8 +16,10 @@
 
 class sunpowerDS30 : public labdevices, public serial {
 public:
+  sunpowerDS30(std::string configfile, std::string devicename,
+               prometheus::Registry *registry);
   sunpowerDS30(std::string port, int baudrate, std::string devicename,
-           prometheus::Registry *registry);
+               prometheus::Registry *registry);
   bool cold_finger_temperature(double *temperature);
 
   bool get_status(sunpower_t &s_t);
