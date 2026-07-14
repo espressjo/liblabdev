@@ -1,25 +1,9 @@
 Dependencies
 ===
-rely on prometheus-cpp. Follow the steps to installl prometheus-cpp;
+rely on prometheus-cpp and SOEM. 
 
-cd ./prometheus-cpp
-
-# fetch third-party dependencies
-git submodule init
-git submodule update
-
-mkdir _build
-cd _build
-
-# run cmake
-cmake .. -DBUILD_SHARED_LIBS=ON -DENABLE_PUSH=OFF -DENABLE_COMPRESSION=OFF
-
-# build
-cmake --build . --parallel 4
-
-# run tests
-ctest -V
-
-# install the libraries and headers
-cmake --install .
+install the dependencies first: 
+cd external
+make clean all
+sudo make install
 

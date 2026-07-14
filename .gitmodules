@@ -1,5 +1,5 @@
 [submodule "prometheus-cpp"]
-	path = prometheus-cpp
+	path = external/prometheus-cpp
 	url = git@github.com:jupp0r/prometheus-cpp.git
 [submodule "external/soem"]
 	path = external/soem
