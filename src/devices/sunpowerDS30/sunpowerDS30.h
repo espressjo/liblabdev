@@ -31,6 +31,8 @@ public:
   bool basic_cmd(std::string cmd, std::string &ret);
   void update();
   void set_timeout(int to_s);
+  bool setCoolerOn();
+  bool setCoolerOff();
 
 private:
   int timeout;

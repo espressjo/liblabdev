@@ -252,6 +252,26 @@ bool sunpowerDS30::AVC(bool status) {
     return basic_cmd("VIBE OFF", buff);
   }
 }
+bool sunpowerDS30::setCoolerOn() {
+  std::string buff = "";
+  if (!basic_cmd("COOLER=ON", buff)) {
+    std::cout << "fail to set cooler on" << std::endl;
+    return false;
+  }
+  std::cout << "Answer: " << buff << std::endl;
+  return true;
+}
+
+bool sunpowerDS30::setCoolerOff() {
+  std::string buff = "";
+  if (!basic_cmd("COOLER=OFF", buff)) {
+    std::cout << "fail to set cooler off" << std::endl;
+    return false;
+  }
+  std::cout << "Answer: " << buff << std::endl;
+  return true;
+}
+
 bool sunpowerDS30::get_vibration() {
   std::string buff = "";
   if (!basic_cmd("VIBE", buff)) {
