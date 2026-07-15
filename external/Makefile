@@ -7,7 +7,7 @@ submodule:
 
 soem: submodule
 	mkdir -p ./soem/build
-	cd ./soem/build && cmake ..
+	cd ./soem/build && cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 	cd ./soem/build && make -j$(nproc)
 
 prometheuscpp:

@@ -3,6 +3,7 @@ all:
 	@cd sunpowerMT && make all
 	@cd sunpowerDS30 && make all
 	@cd mks972b-serial && make all
+	@cd mks972b-ethercat && make all
 	@cd dummy-device && make all
 
 	
@@ -11,4 +12,5 @@ clean:
 	@cd sunpowerMT && make clean
 	@cd sunpowerDS30 && make clean
 	@cd mks972b-serial && make clean
+	@cd mks972b-ethercat && make clean
 	@cd dummy-device && make clean

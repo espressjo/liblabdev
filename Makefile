@@ -8,6 +8,7 @@ TARGET = ./build/liblabdev.so
 LIB = -L./build/ \
       -L/usr/local/lib -luics \
       -lpthread \
+      -lsoem \
       -lprometheus-cpp-core \
       -lprometheus-cpp-pull
 # Compiler

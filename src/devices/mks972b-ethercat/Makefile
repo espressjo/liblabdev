@@ -21,7 +21,7 @@ $(BUILD_DIR)/%.o: %.cpp
 	$(CC) $(CPPFLAGS) $(INCL) -c $< -o $@
 
 all: $(OBJS) $(LIBINCL)
-	@cp *.h $(LIBINCL)/
+	@cp *.h $(LIBINCL)
 
 clean:
 	@rm -f $(OBJS)
