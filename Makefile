@@ -32,9 +32,8 @@ $(TARGET): $(OBJS)
 clean:
 	@cd ./src && make clean
 	@rm -f $(TARGET)
-make_header:
-	$(shell which python) ./build/include/makeheader.py
-install: $(make_header)
+	@rm -rf ./build/*
+install:
 	@cp ./build/liblabdev.so /usr/local/lib/
 	@cp ./build/include/*.h /usr/local/include/
 	@cp -r ./build/include/labdev/ /usr/local/include/
