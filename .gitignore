@@ -2,3 +2,6 @@
 ./references/*
 *.o
 
+src/core/testEtherCat.cpp
+build/
+build/*
