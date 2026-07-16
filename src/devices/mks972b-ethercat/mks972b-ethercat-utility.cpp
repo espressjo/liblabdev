@@ -1,6 +1,6 @@
 #include "mks972b-ethercat-utility.h"
 
-static float e_read_pressure(ecx_contextt *ctx, int slave_idx) {
+float e_read_pressure(ecx_contextt *ctx, int slave_idx) {
   float val = 0.0f;
   int size = sizeof(val);
   if (ecx_SDOread(ctx, slave_idx, 0xF640, 0x11, FALSE, &size, &val,
@@ -9,7 +9,7 @@ static float e_read_pressure(ecx_contextt *ctx, int slave_idx) {
   return val;
 }
 
-static uint16_t read_sensor_number(ecx_contextt *ctx, int slave_idx) {
+uint16_t read_sensor_number(ecx_contextt *ctx, int slave_idx) {
   uint16_t val = 0;
   int size = sizeof(val);
   if (ecx_SDOread(ctx, slave_idx, 0xF640, 0x12, FALSE, &size, &val,
@@ -18,7 +18,7 @@ static uint16_t read_sensor_number(ecx_contextt *ctx, int slave_idx) {
   return val;
 }
 
-static bool read_reading_valid(ecx_contextt *ctx, int slave_idx) {
+bool read_reading_valid(ecx_contextt *ctx, int slave_idx) {
   uint8_t val = 0;
   int size = sizeof(val);
   if (ecx_SDOread(ctx, slave_idx, 0xF640, 0x01, FALSE, &size, &val,
@@ -27,7 +27,7 @@ static bool read_reading_valid(ecx_contextt *ctx, int slave_idx) {
   return val != 0;
 }
 
-static uint8_t read_exception_status(ecx_contextt *ctx, int slave_idx) {
+uint8_t read_exception_status(ecx_contextt *ctx, int slave_idx) {
   uint8_t val = 0;
   int size = sizeof(val);
   if (ecx_SDOread(ctx, slave_idx, 0xF380, 0x00, FALSE, &size, &val,
@@ -36,7 +36,7 @@ static uint8_t read_exception_status(ecx_contextt *ctx, int slave_idx) {
   return val;
 }
 
-static std::string decode_exception(uint8_t status) {
+std::string decode_exception(uint8_t status) {
   std::vector<std::string> bits;
   if (status & 0x01)
     bits.push_back("DeviceWarning");

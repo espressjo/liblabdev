@@ -16,7 +16,7 @@ public:
   dummydevice(std::string devicename, prometheus::Registry *registry);
   int read_dummy(double *value, double noise = 0.6);
   void update();
-  void set_timeout(int to_s);
+  // void set_timeout(int to_s);
 
 private:
   int timeout;

@@ -14,8 +14,17 @@ gauge972_e::gauge972_e(std::string configfile, std::string devicename,
   ADAPTER = cfg_get_string(configfile, "NIC", "");
   if (ADAPTER.empty()) {
     online = false;
+
+    std::cout << "[debug] EtherCat ADAPTER empty" << std::endl;
   } else {
     online = init_ethercat();
+    if (online) {
+      _thread = std::thread(&gauge972_e::t_main, this);
+      std::cout << "[debug] EtherCat thread started" << std::endl;
+    } else {
+
+      std::cout << "[debug] EtherCat thread failed to start" << std::endl;
+    }
   }
   // Establish the Ethercat connection
 }
@@ -151,7 +160,17 @@ void gauge972_e::dump_pdo(const uint8_t *data, int len) {
 void gauge972_e::update() {
   std::cout << "ok ethercat gauge" << std::endl;
   if (online) {
-
+    std::cout << "[debug] EtherCat Gauge: " << std::to_string(pressure)
+              << std::endl;
     setGauge(p_gauge, pressure);
+  }
+
+  std::cout << "[debug] EtherCat Gauge Not Online: " << std::endl;
+}
+gauge972_e::~gauge972_e() {
+
+  g_running = false;
+  if (_thread.joinable()) {
+    _thread.join();
   }
 }

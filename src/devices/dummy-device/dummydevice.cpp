@@ -10,7 +10,7 @@ dummydevice::dummydevice(std::string devicename = "",
 
   addGauge("Dummy", "Dummy Device");
 }
-void dummydevice::set_timeout(int to_s) { timeout = to_s; }
+// void dummydevice::set_timeout(int to_s) { timeout = to_s; }
 int dummydevice::read_dummy(double *value, double noise) {
 
   static std::mt19937 rng(std::random_device{}());
@@ -34,7 +34,8 @@ void dummydevice::update() {
   if (read_dummy(&value, 0.6) == OK) {
     online = true;
     setGauge("Dummy", value);
-std::cout<<"[debug] setting dummy gauge to"<<std::to_string(value)<<std::endl;
+    std::cout << "[debug] setting dummy gauge to" << std::to_string(value)
+              << std::endl;
   } else {
     online = false;
   }
