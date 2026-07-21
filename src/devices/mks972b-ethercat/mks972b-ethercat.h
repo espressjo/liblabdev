@@ -22,6 +22,7 @@ public:
   double pressure;
 
 private:
+  void dprint(std::string msg);
   int timeout;
   std::string p_gauge;
   const double CYCLE_TIME_S = 0.5; // 2 Hz

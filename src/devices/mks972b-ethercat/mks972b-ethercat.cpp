@@ -1,5 +1,12 @@
 #include "mks972b-ethercat.h"
 #include <uics/uics_config.h>
+
+void gauge972_e::dprint(std::string msg) {
+#ifdef DEBUG
+  std::cout << "[debug, mks972] " << msg << std::endl;
+#endif
+}
+
 gauge972_e::gauge972_e(std::string configfile, std::string devicename,
                        prometheus::Registry *registry)
     : labdevices(devicename, registry)
@@ -15,15 +22,15 @@ gauge972_e::gauge972_e(std::string configfile, std::string devicename,
   if (ADAPTER.empty()) {
     online = false;
 
-    std::cout << "[debug] EtherCat ADAPTER empty" << std::endl;
+    dprint("EtherCat ADAPTER empty");
   } else {
     online = init_ethercat();
     if (online) {
       _thread = std::thread(&gauge972_e::t_main, this);
-      std::cout << "[debug] EtherCat thread started" << std::endl;
+      dprint("EtherCat thread started"); // << std::endl;
     } else {
 
-      std::cout << "[debug] EtherCat thread failed to start" << std::endl;
+      dprint("EtherCat thread failed to start"); // << std::endl;
     }
   }
   // Establish the Ethercat connection
@@ -43,23 +50,17 @@ bool gauge972_e::init_ethercat() {
     ecx_close(&ctx);
     return false;
   }
-  std::cout << "Found " << n_slaves << " slave(s):\n";
+  dprint("Found " + std::to_string(n_slaves) + " slave(s)");
   gauge_idx = 1;
   for (int i = 1; i <= ctx.slavecount; ++i) {
-    std::cout << "  [" << i << "] '" << ctx.slavelist[i].name << "'"
-              << "  Vendor=0x" << std::hex << std::setw(8) << std::setfill('0')
-              << ctx.slavelist[i].eep_man << "  Product=0x" << std::setw(8)
-              << std::setfill('0') << ctx.slavelist[i].eep_id << std::dec
-              << '\n';
-
     bool name_match =
         std::string(ctx.slavelist[i].name).find("390") != std::string::npos ||
         std::string(ctx.slavelist[i].name).find("MKS") != std::string::npos;
     if (ctx.slavelist[i].eep_man == 1291 || name_match)
       gauge_idx = i;
   }
-  std::cout << "  Using slave index " << gauge_idx << " ('"
-            << ctx.slavelist[gauge_idx].name << "')\n";
+  dprint("  Using slave index " + std::to_string(gauge_idx) + " ('" +
+         ctx.slavelist[gauge_idx].name + "')");
   ecx_config_map_group(&ctx, IOmap, 0);
   ecx_configdc(&ctx);
 
@@ -78,14 +79,6 @@ bool gauge972_e::init_ethercat() {
     return false;
   }
 
-  std::cout << "\nIn OP state. Starting reads...\n\n";
-  std::cout << std::setw(8) << "Time"
-            << "  " << std::setw(18) << "Pressure (Torr)"
-            << "  " << std::setw(26) << "Sensor"
-            << "  " << std::setw(5) << "Valid"
-            << "  Exception\n";
-  std::cout << std::string(80, '-') << '\n';
-
   return true;
 }
 
@@ -103,7 +96,7 @@ void gauge972_e::t_main() {
       if (pdo && len > 0)
         dump_pdo(pdo, len);
       else
-        std::cout << "  PDO input data not available yet.\n\n";
+        dprint("  PDO input data not available yet.");
     }
 
     try {
@@ -133,39 +126,25 @@ void gauge972_e::t_main() {
 }
 
 void gauge972_e::dump_pdo(const uint8_t *data, int len) {
-  std::cout << "  PDO raw (" << len << " bytes): ";
-  for (int i = 0; i < len; ++i) {
-    if (i)
-      std::cout << ' ';
-    std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data[i];
-  }
-  std::cout << std::dec << '\n';
-  std::cout << "  Scanning for float32 pressure value:\n";
   bool found = false;
   for (int off = 0; off <= len - 4; ++off) {
     float v;
     std::memcpy(&v, data + off, 4);
     if (v > 1e-11f && v < 1100.0f) {
-      std::cout << "    -> offset [" << off << ':' << off + 4 << "]  "
-                << std::scientific << std::setprecision(4) << v
-                << " Torr  <- likely pressure\n";
       found = true;
     }
   }
   if (!found)
-    std::cout << "    (no plausible pressure float found)\n";
-  std::cout << '\n';
+    dprint("  (no plausible pressure float found)");
 }
 
 void gauge972_e::update() {
-  std::cout << "ok ethercat gauge" << std::endl;
   if (online) {
-    std::cout << "[debug] EtherCat Gauge: " << std::to_string(pressure)
-              << std::endl;
+    dprint("EtherCat Gauge: " + std::to_string(pressure));
     setGauge(p_gauge, pressure);
   }
 
-  std::cout << "[debug] EtherCat Gauge Not Online: " << std::endl;
+  dprint("EtherCat Gauge Not Online ");
 }
 gauge972_e::~gauge972_e() {
 
