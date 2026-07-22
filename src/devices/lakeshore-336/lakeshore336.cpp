@@ -8,6 +8,7 @@ lakeshore336::lakeshore336(std::string IP, int port, std::string devicename,
  * Open socket communication.
  */
 {
+  set_connection_timeout(2);
   if (!connect(IP, port)) {
 
     std::cout << "[debug] Unable to open connection with lakeshore 336"
@@ -55,6 +56,8 @@ lakeshore336::lakeshore336(std::string configfile, std::string devicename = "",
   std::string IP = cfg_get_string(configfile, "LSIP", "127.0.0.1");
   std::cout << "[debug] " << IP << std::endl;
   // timeout in second
+  
+  set_connection_timeout(2);
   if (!connect(IP, port)) {
 
     std::cout << "[debug] Unable to open connection with lakeshore 336"
