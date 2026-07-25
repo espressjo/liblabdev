@@ -47,7 +47,16 @@ bool DeviceManager::addDevice(std::shared_ptr<labdevices> device,
 
   return true;
 }
+bool DeviceManager::deviceOnline(std::string deviceName) {
+  std::lock_guard<std::mutex> lock(devicesMutex_);
 
+  auto it = findDevice(deviceName);
+  if (it == devices_.end()) {
+    return false;
+  }
+
+  return (*it)->device->isOnline();
+}
 bool DeviceManager::removeDevice(const std::string &deviceName) {
   std::lock_guard<std::mutex> lock(devicesMutex_);
 

@@ -14,7 +14,7 @@ public:
   virtual void update();
 
   void setRegistry(prometheus::Registry *registry);
-
+  bool isOnline();
   std::string device_name;
 
 protected:

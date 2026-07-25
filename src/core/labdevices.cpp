@@ -28,7 +28,7 @@ bool labdevices::setGauge(std::string gaugeName, double value) {
 
   return false; // Gauge not found
 }
-
+bool labdevices::isOnline() { return online; }
 bool labdevices::addGauge(std::string name, std::string description) {
   if (!registry) {
     return false;

@@ -18,7 +18,11 @@ sunpowerDS30::sunpowerDS30(std::string configfile, std::string devicename,
 
   ignore_cariage_return = false;
   status = ouvrirport(port, baudrate);
-
+  if (status == OK) {
+    online = true;
+  } else {
+    online = false;
+  }
   /*
    double VDC;
     double POWER_CMD;

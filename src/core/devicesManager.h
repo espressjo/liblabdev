@@ -80,6 +80,7 @@ public:
   bool deviceExist(std::string deviceName);
 
   int getDevicePollingTime(const std::string &deviceName);
+  bool deviceOnline(std::string deviceName);
 
 private:
   // Main update loop
