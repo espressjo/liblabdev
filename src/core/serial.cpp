@@ -1,4 +1,32 @@
 #include "serial.h"
+#include <cerrno>
+
+namespace {
+/*==========================================================================
+    fonction: 	int read_byte(int fd, char *dst)
+
+    description:	Lit un seul caractere sur le port serie. Reessaie
+            automatiquement lorsque read() est interrompu par un
+            signal (EINTR), ce qui arrive dans un programme
+            multi-thread.
+
+            Retourne 1 si un caractere a ete lu.
+            Retourne 0 si le delai (VTIME) a expire ou EOF.
+            Retourne -1 si une erreur reelle a eu lieu.
+============================================================================*/
+int read_byte(int fd, char *dst) {
+  for (;;) {
+    ssize_t n = read(fd, dst, 1);
+    if (n >= 0) {
+      return (int)n;
+    }
+    if (errno == EINTR) {
+      continue;
+    }
+    return -1;
+  }
+}
+} // namespace
 
 serial::serial() : last_call_time(std::chrono::steady_clock::now()) {
   idport = 0;
@@ -33,11 +61,9 @@ int serial::set_usb() {
 
 int serial::ouvrirport(
     std::string port,
-    int vitesse) /* port = "0", "1" ou "2" , Vallee fev. 2012 */
+    int vitesse) /* port = chemin complet, ex. "/dev/ttyS4" */
 
 {
-  std::string fichier = "";
-
   if ((fd = open(port.c_str(), O_RDWR | O_NOCTTY)) == NOK) {
     fprintf(stderr, "Erreur lors de l'ouverture du port serie %s, fd =%d .\n",
             port.c_str(), fd);
@@ -45,27 +71,29 @@ int serial::ouvrirport(
     return NOK;
   }
 
-  if (ignore_cariage_return) {
-    serie.c_iflag = IGNCR; /* ignore <CR> */
+  /*
+   * On part de la configuration courante du pilote afin que tous les champs
+   * qui ne sont pas assignes explicitement ci-dessous (en particulier les
+   * cases de c_cc[] autres que VMIN et VTIME) contiennent une valeur valide
+   * plutot qu'une valeur indeterminee.
+   */
+  if (tcgetattr(fd, &serie) < 0) {
+    fprintf(stderr,
+            "Erreur lors de la lecture de la configuration du port serie.\n");
+    status = NOK;
+    close(fd);
+    return NOK;
   }
 
-  else {
-    serie.c_iflag &= ~IGNCR;
-  }
+  serie.c_iflag = ignore_cariage_return ? IGNCR : 0; /* ignore <CR> */
+
   if (set_XON) {
-
-    serie.c_iflag |= IXON; /* ignore <CR> */
-  } else {
-    serie.c_iflag &= ~IXON;
+    serie.c_iflag |= IXON;
   }
   if (set_XOFF) {
-
-    serie.c_iflag |= IXOFF; /* ignore <CR> */
+    serie.c_iflag |= IXOFF;
   }
 
-  else {
-    serie.c_iflag &= ~IXOFF;
-  }
   serie.c_oflag = 0;
   serie.c_cflag = CS8 | CREAD | CLOCAL;
 
@@ -88,7 +116,7 @@ int serial::ouvrirport(
                              repeatedly, it can consume enormous amounts of processor time and is highly
                              inefficient. Don't use this mode unless you really, really know what you're
                              doing.
-                           
+
                              VMIN = 0 and VTIME > 0
                              -----------------------
                                  This is a pure timed read. If data are available in the input queue, it's
@@ -98,7 +126,7 @@ int serial::ouvrirport(
                              without data, zero is returned. A single byte is sufficient to satisfy this
                              read call, but if more is available in the input queue, it's returned to the
                              caller. Note that this is an overall timer, not an intercharacter one.
-                           
+
                              VMIN > 0 and VTIME > 0
                              ----------------------
                                  A read() is satisfied when either VMIN characters have been transferred to
@@ -107,7 +135,7 @@ int serial::ouvrirport(
                              block indefinitely if the serial line is idle. This is the most common mode of
                              operation, and we consider VTIME to be an intercharacter timeout, not an
                              overall one. This call should never return zero bytes read.
-                           
+
                              VMIN > 0 and VTIME = 0
                              ----------------------
                              This is a counted read that is satisfied only when at least VMIN characters
@@ -116,7 +144,7 @@ int serial::ouvrirport(
                              call could return immediately), or by waiting for new data to arrive: in this
                              respect the call could block indefinitely. We believe that it's undefined
                              behavior if nbytes is less then VMIN.
-                           
+
                              */
 
   speed_t baud;
@@ -134,7 +162,10 @@ int serial::ouvrirport(
     baud = B9600;
     break;
   case 4800:
-    baud = 4800;
+    baud = B4800;
+    break;
+  case 2400:
+    baud = B2400;
     break;
   case 57600:
     baud = B57600;
@@ -175,7 +206,7 @@ int serial::ouvrirport(
       close(fd);
       return NOK;
     }
-    status |= TIOCM_DTR;
+    _status |= TIOCM_DTR;
     if (ioctl(fd, TIOCMSET, &_status) < 0) {
       fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
       status = NOK;
@@ -198,7 +229,7 @@ int serial::ouvrirport(
 }
 
 int serial::ouvrirport(
-    int port, int vitesse) /* port = "0", "1" ou "2" , Vallee fev. 2012 */
+    int port, int vitesse) /* port = 0, 1 ou 2 , Vallee fev. 2012 */
 
 {
   std::string fichier = "";
@@ -208,178 +239,22 @@ int serial::ouvrirport(
     fichier = "/dev/ttyS" + std::to_string(port);
   }
 
-  if ((fd = open(fichier.c_str(), O_RDWR | O_NOCTTY)) == NOK) {
-    fprintf(stderr, "Erreur lors de l'ouverture du port serie %s, fd =%d .\n",
-            fichier.c_str(), fd);
-    status = NOK;
-    return NOK;
-  }
-
-  if (ignore_cariage_return) {
-    serie.c_iflag = IGNCR; /* ignore <CR> */
-  }
-
-  else {
-    serie.c_iflag &= ~IGNCR;
-  }
-  if (set_XON) {
-
-    serie.c_iflag |= IXON; /* ignore <CR> */
-  } else {
-    serie.c_iflag &= ~IXON;
-  }
-  if (set_XOFF) {
-
-    serie.c_iflag |= IXOFF; /* ignore <CR> */
-  }
-
-  else {
-    serie.c_iflag &= ~IXOFF;
-  }
-
-  serie.c_oflag = 0;
-  serie.c_cflag = CS8 | CREAD | CLOCAL;
-
-  if (set_CTSRTS_flow_ctrl) {
-    serie.c_cflag |= CRTSCTS;
-  }
-
-  serie.c_lflag = 0;
-  serie.c_cc[VMIN] = vmin;   /* nombre minimum de caracteres */
-  serie.c_cc[VTIME] = vtime; /* nombre x 0.1 s d'attente max */
-                             /* lors d'un appel de read */
-                             /*
-                             VMIN = 0 and VTIME = 0
-                             ----------------------
-                                 This is a completely non-blocking read - the call is satisfied immediately
-                             directly from the driver's input queue. If data are available, it's
-                             transferred to the caller's buffer up to nbytes and returned. Otherwise zero
-                             is immediately returned to indicate "no data". We'll note that this is
-                             "polling" of the serial port, and it's almost always a bad idea. If done
-                             repeatedly, it can consume enormous amounts of processor time and is highly
-                             inefficient. Don't use this mode unless you really, really know what you're
-                             doing.
-                           
-                             VMIN = 0 and VTIME > 0
-                             -----------------------
-                                 This is a pure timed read. If data are available in the input queue, it's
-                             transferred to the caller's buffer up to a maximum of nbytes, and returned
-                             immediately to the caller. Otherwise the driver blocks until data arrives, or
-                             when VTIME tenths expire from the start of the call. If the timer expires
-                             without data, zero is returned. A single byte is sufficient to satisfy this
-                             read call, but if more is available in the input queue, it's returned to the
-                             caller. Note that this is an overall timer, not an intercharacter one.
-                           
-                             VMIN > 0 and VTIME > 0
-                             ----------------------
-                                 A read() is satisfied when either VMIN characters have been transferred to
-                             the caller's buffer, or when VTIME tenths expire between characters. Since
-  this timer is not started until the first character arrives, this call can
-                             block indefinitely if the serial line is idle. This is the most common mode of
-                             operation, and we consider VTIME to be an intercharacter timeout, not an
-                             overall one. This call should never return zero bytes read.
-                           
-                             VMIN > 0 and VTIME = 0
-                             ----------------------
-                             This is a counted read that is satisfied only when at least VMIN characters
-                             have been transferred to the caller's buffer - there is no timing component
-                             involved. This read can be satisfied from the driver's input queue (where the
-                             call could return immediately), or by waiting for new data to arrive: in this
-                             respect the call could block indefinitely. We believe that it's undefined
-                             behavior if nbytes is less then VMIN.
-                           
-                             */
-
-  speed_t baud;
-  switch (vitesse) {
-  case 19200:
-    baud = B19200;
-    break;
-  case 115200:
-    baud = B115200;
-    break;
-  case 38400:
-    baud = B38400;
-    break;
-  case 9600:
-    baud = B9600;
-    break;
-  case 4800:
-    baud = 4800;
-    break;
-  case 57600:
-    baud = B57600;
-    break;
-  case 1200:
-    baud = B1200;
-    break;
-  case 600:
-    baud = B600;
-    break;
-  case 300:
-    baud = B300;
-    break;
-  default:
-    baud = B9600;
-    break;
-  }
-
-  if (cfsetispeed(&serie, baud) != 0) {
-    fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
-    status = NOK;
-    close(fd);
-    return NOK;
-  }
-  if (cfsetospeed(&serie, baud) != 0) {
-    fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
-    status = NOK;
-    close(fd);
-    return NOK;
-  }
-
-  if (set_DTR_HI) {
-
-    int _status;
-    if (ioctl(fd, TIOCMGET, &_status) < 0) {
-      fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
-      status = NOK;
-      close(fd);
-      return NOK;
-    }
-    status |= TIOCM_DTR;
-    if (ioctl(fd, TIOCMSET, &_status) < 0) {
-      fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
-      status = NOK;
-      close(fd);
-      return NOK;
-    }
-  }
-
-  if (tcsetattr(fd, TCSANOW, &serie) < 0) {
-    fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
-    status = NOK;
-    close(fd);
-    return NOK;
-  }
-
-  idport = fd;
-  status = OPEN;
-  last_call_time = std::chrono::steady_clock::now();
-  return 0;
+  return ouvrirport(fichier, vitesse);
 }
 
 int serial::configport() {
   /* configuration du port */
 
-  if (ioctl(fd, TCGETA, &serie) == NOK) {
-    fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
+  if (tcgetattr(fd, &serie) < 0) {
+    fprintf(stderr,
+            "Erreur lors de la lecture de la configuration du port serie.\n");
     status = NOK;
     return NOK;
   }
 
   serie.c_iflag = 0;
 
-  if (ioctl(fd, TCSETA, &serie) == NOK) {
+  if (tcsetattr(fd, TCSANOW, &serie) < 0) {
     fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
     status = NOK;
     return (NOK);
@@ -427,8 +302,11 @@ int serial::ecrireport(std::string str) {
 int serial::lireport(std::string *str, int ncar, int timeout_sec) {
   int i, n = 0;
   *str = "";
-  char *tmpstr = new char[ncar];
-  memset(tmpstr, 0, ncar);
+  if (ncar < 0) {
+    return NOK;
+  }
+  char *tmpstr = new char[ncar + 1];
+  memset(tmpstr, 0, ncar + 1);
 
   //:::::::::::::::::::::::::::::::::::
   //:::   Make sure N ms elapsed    :::
@@ -472,7 +350,15 @@ int serial::lireport(std::string *str, int ncar, int timeout_sec) {
     }
 
     // Data is available, read it
-    n = read(fd, tmpstr + i, 1);
+    n = read_byte(fd, tmpstr + i);
+
+    if (n < 0) {
+      fprintf(stderr, "Erreur lors de la lecture du port serie.\n");
+      tmpstr[i] = '\0';
+      *str = conversion(tmpstr);
+      delete[] tmpstr;
+      return -1; // Error
+    }
 
     if (n == 0) {
       tmpstr[i] = '\0';
@@ -505,8 +391,11 @@ int serial::lireport(std::string *str, int ncar)
 {
   int i, n = 0;
   *str = "";
-  char *tmpstr = new char[ncar];
-  memset(tmpstr, 0, ncar);
+  if (ncar < 0) {
+    return NOK;
+  }
+  char *tmpstr = new char[ncar + 1];
+  memset(tmpstr, 0, ncar + 1);
   //:::::::::::::::::::::::::::::::::::
   //:::   Make sure N ms elapsed    :::
   //:::::::::::::::::::::::::::::::::::
@@ -521,8 +410,15 @@ int serial::lireport(std::string *str, int ncar)
   }
 
   for (i = 0; i < ncar; i++) {
-    n = read(fd, tmpstr + i, 1);
+    n = read_byte(fd, tmpstr + i);
     // printf("n: %d\n",n);
+    if (n < 0) {
+      fprintf(stderr, "Erreur lors de la lecture du port serie.\n");
+      tmpstr[i] = '\0';
+      *str = conversion(tmpstr);
+      delete[] tmpstr;
+      return NOK;
+    }
     if (n == 0) {
       tmpstr[i] = '\0';
       *str = conversion(tmpstr);
@@ -550,20 +446,19 @@ void serial::delay(int ms)
  * Create a delay. ms is delay time in millisecond
  */
 {
-  clock_t t0 = clock();
-  while (clock() < t0 + ms * 1000)
-    ;
+  std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
 int serial::lirec(std::string *str, char c)
 /* Lit sur le port serie jusqu'au caractere c.
  * Retourne le nombre de charactère lu.
+ * Retourne ERREUR si une erreur a eu lieu.
  */
 {
   int i, n;
   *str = "";
-  char *tmpstr = new char[MAX_CHAR];
-  memset(tmpstr, 0, MAX_CHAR);
+  char *tmpstr = new char[MAX_CHAR + 1];
+  memset(tmpstr, 0, MAX_CHAR + 1);
   //:::::::::::::::::::::::::::::::::::
   //:::   Make sure N ms elapsed    :::
   //:::::::::::::::::::::::::::::::::::
@@ -578,7 +473,15 @@ int serial::lirec(std::string *str, char c)
   }
 
   for (i = 0; i < MAX_CHAR; i++) {
-    n = read(fd, tmpstr + i, 1);
+    n = read_byte(fd, tmpstr + i);
+
+    if (n < 0) {
+      fprintf(stderr, "Erreur lors de la lecture du port serie.\n");
+      tmpstr[i] = '\0';
+      *str = conversion(tmpstr);
+      delete[] tmpstr;
+      return NOK;
+    }
 
     if (n == 0) {
       tmpstr[i] = '\0';
@@ -606,7 +509,7 @@ std::string serial::conversion(std::string ss) {
   }
   if (buff.length() > 0) {
     if (buff[buff.length() - 1] == '\n') {
-      buff[buff.length() - 1] = '\0';
+      buff.pop_back();
     }
   }
   return buff;
@@ -632,6 +535,11 @@ std::string serial::communicate(std::string cmd, int ncar, bool strip) {
     return "";
   }
   ncar_read = lireport(&buffer, ncar);
+  if (ncar_read < 0) {
+    // lecture en erreur: exchange_status reste NOTVALID
+    ncar_read = 0;
+    return "";
+  }
   if (ncar_read == 0) {
     exchange_status = EMPTY;
     return "";
@@ -654,24 +562,21 @@ int serial::waitfor(const char a, int timeout) {
    */
   char dummy;
   int n = 0;
-  std::chrono::steady_clock::time_point last_call_time(
-      std::chrono::steady_clock::now());
+  std::chrono::steady_clock::time_point t0(std::chrono::steady_clock::now());
 
   while (1) {
-    n = read(fd, &dummy, 1);
+    n = read_byte(fd, &dummy);
     if (n == 0) {
       std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    } else if (n == -1) {
+    } else if (n < 0) {
       fprintf(stderr, "Erreur lors de la lecture du port serie.\n");
       return -1;
-    }
-    if (n == a) {
+    } else if (dummy == a) {
       return 0;
     }
     auto now = std::chrono::steady_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                       now - last_call_time)
-                       .count();
+    auto elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - t0).count();
     if (elapsed > timeout) {
       break;
     }

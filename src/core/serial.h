@@ -30,8 +30,6 @@ public:
   int ecrireport(std::string str);
   int lireport(std::string *str, int ncar);
   int lirec(std::string *str, char c);
-  int verification(std::string str);
-  int changeBaudRate(int baudrate);
   int status;
   int set_usb(void);
   std::string communicate(std::string cmd, int ncar = MAX_CHAR,

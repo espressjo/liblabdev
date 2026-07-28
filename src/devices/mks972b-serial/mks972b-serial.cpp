@@ -14,7 +14,6 @@ gauge972::gauge972(std::string configfile, std::string devicename = "",
 
   status = ouvrirport(port, baudrate);
 
-  status = ouvrirport(port, baudrate);
   if (status != OK) {
     online = false;
   }

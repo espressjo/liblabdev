@@ -272,14 +272,14 @@ bool sunpowerDS30::basic_cmd(std::string cmd, std::string &ret) {
   std::string buff = "";
 
   if (timeout > 0) {
-    if (lireport(&buff, MAX_CHAR, timeout) < cmd.length() - 1) {
+    if (lireport(&buff, MAX_CHAR, timeout) < (int)(cmd.length() - 1)) {
       std::cerr << "Received: " << buff
                 << ". Expecting longer reply from sunpower" << std::endl;
       return false;
     }
 
   } else {
-    if (lireport(&buff, MAX_CHAR) < cmd.length() - 1) {
+    if (lireport(&buff, MAX_CHAR) < (int)(cmd.length() - 1)) {
       std::cerr << "Received: " << buff
                 << ". Expecting longer reply from sunpower" << std::endl;
       return false;

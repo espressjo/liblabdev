@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h> /* strcpy, strlen */
 #include <string>
-#include <termios.h>   /* ioctl */
+#include <termios.h>  /* ioctl */
 #include <unistd.h>   /* read, write, close */
 #define DELAIMAX 5000 /* delai maximum pour l'attente en ms*/
 
@@ -26,7 +26,6 @@ public:
   int read_pressure(double *pressure);
   int read_pirani(double *pressure);
   int read_cold_cathod(double *pressure);
-  int changeBaudRate(int baudrate);
   void update();
   void set_timeout(int to_s);
 
