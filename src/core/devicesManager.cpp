@@ -57,6 +57,31 @@ bool DeviceManager::deviceOnline(std::string deviceName) {
 
   return (*it)->device->isOnline();
 }
+bool DeviceManager::getDeviceValue(const std::string &deviceName,
+                                   const std::string &gaugeName,
+                                   double &value) const {
+  std::lock_guard<std::mutex> lock(devicesMutex_);
+
+  auto it = findDevice(deviceName);
+  if (it == devices_.end()) {
+    return false;
+  }
+
+  return (*it)->device->getGauge(gaugeName, value);
+}
+
+std::vector<std::string>
+DeviceManager::getDeviceGaugeNames(const std::string &deviceName) const {
+  std::lock_guard<std::mutex> lock(devicesMutex_);
+
+  auto it = findDevice(deviceName);
+  if (it == devices_.end()) {
+    return {};
+  }
+
+  return (*it)->device->getGaugeNames();
+}
+
 bool DeviceManager::removeDevice(const std::string &deviceName) {
   std::lock_guard<std::mutex> lock(devicesMutex_);
 

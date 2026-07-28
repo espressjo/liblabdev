@@ -1,4 +1,5 @@
 #include "labdevices.h"
+#include <cmath>
 #include <iostream>
 labdevices::labdevices(std::string devicename, prometheus::Registry *registry)
     : registry(nullptr) {
@@ -28,6 +29,33 @@ bool labdevices::setGauge(std::string gaugeName, double value) {
 
   return false; // Gauge not found
 }
+bool labdevices::getGauge(const std::string &gaugeName, double &value) const {
+  // prometheus::Gauge holds an std::atomic<double>, so reading the last value
+  // pushed by update() from another thread is safe without extra locking.
+  auto it = gaugeSensor.find(gaugeName);
+  if (it == gaugeSensor.end()) {
+    return false;
+  }
+
+  value = it->second->Value();
+  return true;
+}
+
+double labdevices::getGauge(const std::string &gaugeName) const {
+  double value = std::nan("");
+  getGauge(gaugeName, value);
+  return value;
+}
+
+std::vector<std::string> labdevices::getGaugeNames() const {
+  std::vector<std::string> names;
+  names.reserve(gaugeSensor.size());
+  for (const auto &entry : gaugeSensor) {
+    names.push_back(entry.first);
+  }
+  return names;
+}
+
 bool labdevices::isOnline() { return online; }
 bool labdevices::addGauge(std::string name, std::string description) {
   if (!registry) {

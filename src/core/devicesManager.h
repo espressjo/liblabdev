@@ -82,6 +82,13 @@ public:
   int getDevicePollingTime(const std::string &deviceName);
   bool deviceOnline(std::string deviceName);
 
+  // Last value read by the device on its previous update(). Returns false when
+  // the device or the gauge is unknown.
+  bool getDeviceValue(const std::string &deviceName,
+                      const std::string &gaugeName, double &value) const;
+  std::vector<std::string> getDeviceGaugeNames(const std::string &deviceName)
+      const;
+
 private:
   // Main update loop
   void run();
