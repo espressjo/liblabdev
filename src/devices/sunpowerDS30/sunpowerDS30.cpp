@@ -169,21 +169,6 @@ sunpower_t sunpowerDS30::parseStatus(const std::string &input) {
 void sunpowerDS30::update() {
   sunpower_t status_t;
 
-  /*
-  double VDC;
-
-      double POWER_CMD;
-      double TC;
-      double RT;
-      double WT;
-      double VrmsOutA;
-      double IrmsOutA;
-      double PA;
-      double VrmsOutB;
-      double IrmsOutB;
-      double PB;
-      */
-
   if (get_status(status_t)) {
     setGauge("VDC", status_t.VDC);
 
@@ -208,20 +193,10 @@ bool sunpowerDS30::get_status(sunpower_t &s_t) {
   std::string buff = "";
   if (!basic_cmd("status", buff)) {
     online = false;
+    return false;
   }
-
-  /*
-    if (timeout > 0) {
-      if (lireport(&buff, 2048, timeout) < 400) {
-        return false;
-      }
-
-    } else {
-      if (lireport(&buff, 2048) < 400) {
-        return false;
-      }
-    }*/
   s_t = parseStatus(buff);
+  online = true;
   return true;
 }
 void sunpowerDS30::printStatus() {
