@@ -89,6 +89,25 @@ public:
   std::vector<std::string> getDeviceGaugeNames(const std::string &deviceName)
       const;
 
+  //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+  //:::   Typed access to a managed device, so device specific methods  :::
+  //:::   can be called (e.g. getDevice<lakeshore336>("ls")->setp_1()). :::
+  //:::   Returns nullptr when the name is unknown or when T is not the :::
+  //:::   actual device type. Beware: methods reached this way run on   :::
+  //:::   the CALLER's thread while update() may be running on the      :::
+  //:::   polling thread, and the transports are not mutex protected.   :::
+  //:::   Disable the device first when the call does any I/O.          :::
+  //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+  template <typename T>
+  std::shared_ptr<T> getDevice(const std::string &deviceName) {
+    std::lock_guard<std::mutex> lock(devicesMutex_);
+    auto it = findDevice(deviceName);
+    if (it == devices_.end()) {
+      return nullptr;
+    }
+    return std::dynamic_pointer_cast<T>((*it)->device);
+  }
+
 private:
   // Main update loop
   void run();

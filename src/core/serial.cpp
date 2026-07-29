@@ -60,8 +60,7 @@ int serial::set_usb() {
 }
 
 int serial::ouvrirport(
-    std::string port,
-    int vitesse) /* port = chemin complet, ex. "/dev/ttyS4" */
+    std::string port, int vitesse) /* port = chemin complet, ex. "/dev/ttyS4" */
 
 {
   if ((fd = open(port.c_str(), O_RDWR | O_NOCTTY)) == NOK) {
@@ -116,7 +115,7 @@ int serial::ouvrirport(
                              repeatedly, it can consume enormous amounts of processor time and is highly
                              inefficient. Don't use this mode unless you really, really know what you're
                              doing.
-
+                           
                              VMIN = 0 and VTIME > 0
                              -----------------------
                                  This is a pure timed read. If data are available in the input queue, it's
@@ -126,7 +125,7 @@ int serial::ouvrirport(
                              without data, zero is returned. A single byte is sufficient to satisfy this
                              read call, but if more is available in the input queue, it's returned to the
                              caller. Note that this is an overall timer, not an intercharacter one.
-
+                           
                              VMIN > 0 and VTIME > 0
                              ----------------------
                                  A read() is satisfied when either VMIN characters have been transferred to
@@ -135,7 +134,7 @@ int serial::ouvrirport(
                              block indefinitely if the serial line is idle. This is the most common mode of
                              operation, and we consider VTIME to be an intercharacter timeout, not an
                              overall one. This call should never return zero bytes read.
-
+                           
                              VMIN > 0 and VTIME = 0
                              ----------------------
                              This is a counted read that is satisfied only when at least VMIN characters
@@ -144,7 +143,7 @@ int serial::ouvrirport(
                              call could return immediately), or by waiting for new data to arrive: in this
                              respect the call could block indefinitely. We believe that it's undefined
                              behavior if nbytes is less then VMIN.
-
+                           
                              */
 
   speed_t baud;
@@ -228,8 +227,8 @@ int serial::ouvrirport(
   return 0;
 }
 
-int serial::ouvrirport(
-    int port, int vitesse) /* port = 0, 1 ou 2 , Vallee fev. 2012 */
+int serial::ouvrirport(int port,
+                       int vitesse) /* port = 0, 1 ou 2 , Vallee fev. 2012 */
 
 {
   std::string fichier = "";
