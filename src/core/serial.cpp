@@ -448,14 +448,35 @@ void serial::delay(int ms)
   std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
-int serial::lirec(std::string *str, char c)
-/* Lit sur le port serie jusqu'au caractere c.
- * Retourne le nombre de charactère lu.
- * Retourne ERREUR si une erreur a eu lieu.
+int serial::lirec(std::string *str, char c, int timeout_ms)
+/* Lit sur le port serie jusqu'au caractere c (exclu du resultat).
+ *
+ * timeout_ms est un delai GLOBAL: on continue d'attendre tant que le
+ * caractere c n'est pas arrive et que le delai n'est pas ecoule. Un
+ * read() qui retourne 0 (expiration de VTIME) ne signifie PAS la fin
+ * du message: avec VMIN=0/VTIME=1 cela arrive apres 100 ms de silence.
+ *
+ * Retourne le nombre de caracteres lus (sans le caractere c).
+ * Retourne NOK (-1) si une erreur a eu lieu.
+ * Retourne -2 si le delai a expire avant de voir c (str contient
+ *            les caracteres deja recus).
+ * Retourne -3 si MAX_CHAR caracteres ont ete lus sans voir c.
  */
 {
   int i, n;
   *str = "";
+
+  /*
+   * IGNCR fait rejeter tous les <CR> par le pilote: ils n'atteignent
+   * jamais read(), donc attendre '\r' serait sans issue.
+   */
+  if (ignore_cariage_return && c == '\r') {
+    fprintf(stderr,
+            "ERROR lirec: impossible d'attendre <CR> avec IGNCR actif. "
+            "Mettre ignore_cariage_return = false avant ouvrirport().\n");
+    return NOK;
+  }
+
   char *tmpstr = new char[MAX_CHAR + 1];
   memset(tmpstr, 0, MAX_CHAR + 1);
   //:::::::::::::::::::::::::::::::::::
@@ -471,7 +492,43 @@ int serial::lirec(std::string *str, char c)
         std::chrono::milliseconds(call_delay - elapsed));
   }
 
-  for (i = 0; i < MAX_CHAR; i++) {
+  auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+
+  for (i = 0; i < MAX_CHAR;) {
+    auto remaining = std::chrono::duration_cast<std::chrono::microseconds>(
+                         deadline - std::chrono::steady_clock::now())
+                         .count();
+    if (remaining <= 0) {
+      tmpstr[i] = '\0';
+      *str = conversion(tmpstr);
+      delete[] tmpstr;
+      return -2; // Timeout
+    }
+
+    fd_set read_fds;
+    struct timeval timeout;
+    FD_ZERO(&read_fds);
+    FD_SET(fd, &read_fds);
+    timeout.tv_sec = remaining / 1000000;
+    timeout.tv_usec = remaining % 1000000;
+
+    int select_result = select(fd + 1, &read_fds, NULL, NULL, &timeout);
+
+    if (select_result < 0) {
+      fprintf(stderr, "Erreur lors de la lecture du port serie.\n");
+      tmpstr[i] = '\0';
+      *str = conversion(tmpstr);
+      delete[] tmpstr;
+      return NOK;
+    }
+    if (select_result == 0) {
+      tmpstr[i] = '\0';
+      *str = conversion(tmpstr);
+      delete[] tmpstr;
+      return -2; // Timeout
+    }
+
     n = read_byte(fd, tmpstr + i);
 
     if (n < 0) {
@@ -483,22 +540,23 @@ int serial::lirec(std::string *str, char c)
     }
 
     if (n == 0) {
-      tmpstr[i] = '\0';
-      *str = conversion(tmpstr);
-      delete[] tmpstr;
-      return i;
-    } else if (tmpstr[i] == c) {
+      /* VTIME expire: rien a lire pour l'instant, on retourne attendre. */
+      continue;
+    }
+
+    if (tmpstr[i] == c) {
       tmpstr[i] = '\0';
       *str = conversion(tmpstr);
       delete[] tmpstr;
       return i;
     }
+    i++;
   }
 
-  tmpstr[i] = '\0';
+  tmpstr[MAX_CHAR] = '\0';
   *str = conversion(tmpstr);
   delete[] tmpstr;
-  return i;
+  return -3; // Buffer plein sans avoir vu c
 }
 
 std::string serial::conversion(std::string ss) {
