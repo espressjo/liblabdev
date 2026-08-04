@@ -10,7 +10,6 @@ SRCS = ethernet.cpp \
        serial.cpp \
        ethernet_devices.cpp \
        devicesManager.cpp \
-       devManagerCtrl.cpp \
        labdevices.cpp
 
 OBJS = $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
