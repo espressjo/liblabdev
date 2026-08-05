@@ -1,5 +1,6 @@
 #include "sunpowerMT.h"
 #include "labdevices.h"
+#include <uics/parse_number.h>
 #include "serial.h"
 #include <ctime>
 #include <prometheus/registry.h>
@@ -67,15 +68,15 @@ sunpowerMT_t sunpowerMT::parseStatus(const std::string &input) {
 
     // Parse based on key
     if (key == "Power Measured") {
-      data.power_measured = std::stod(value);
+      parse_double(value, &data.power_measured);
     } else if (key == "Power Commanded") {
-      data.power_commanded = std::stod(value);
+      parse_double(value, &data.power_commanded);
     } else if (key == "Target Temp") {
-      data.target_t = std::stod(value);
+      parse_double(value, &data.target_t);
     } else if (key == "Reject Temp") {
-      data.reject_t = std::stod(value);
+      parse_double(value, &data.reject_t);
     } else if (key == "Coldhead Temp") {
-      data.coldhead_t = std::stod(value);
+      parse_double(value, &data.coldhead_t);
     }
   }
 

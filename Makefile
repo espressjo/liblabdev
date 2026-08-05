@@ -23,7 +23,13 @@ SRC:
 OBJS = $(wildcard $(BUILD_DIR)/*.o)
 
 # Default target
-all: SRC $(TARGET)
+# The link must run in a *second* make invocation: $(OBJS) is a wildcard over
+# build/, and if it were expanded while this makefile is first read (before SRC
+# has compiled anything) it would expand to nothing -- and make's directory
+# cache would keep returning nothing for the rest of the run, linking an empty
+# .so. Re-entering make re-globs build/ once the objects are there.
+all: SRC
+	@$(MAKE) --no-print-directory $(TARGET)
 
 # Link object files into shared library
 $(TARGET): $(OBJS)

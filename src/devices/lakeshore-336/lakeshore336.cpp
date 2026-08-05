@@ -1,5 +1,6 @@
 #include "lakeshore336.h"
 #include "labdevices.h"
+#include <uics/parse_number.h>
 lakeshore336::lakeshore336(std::string IP, int port, std::string devicename,
                            bool extended = true,
                            prometheus::Registry *registry = nullptr)
@@ -249,7 +250,10 @@ int lakeshore336::find_double(std::string input, double *T) {
     *T = 0.0;
     return NOK;
   }
-  *T = std::stod(buff);
+  if (!parse_double(buff, T)) {
+    *T = 0.0;
+    return NOK;
+  }
   return OK;
 }
 double lakeshore336::read_aout3()

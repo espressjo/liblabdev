@@ -1,5 +1,6 @@
 #include "sunpowerDS30.h"
 #include "labdevices.h"
+#include <uics/parse_number.h>
 #include "serial.h"
 #include "sunpowerDS30_t.h"
 #include <ctime>
@@ -129,29 +130,29 @@ sunpower_t sunpowerDS30::parseStatus(const std::string &input) {
 
     // Parse based on key
     if (key == "VDC") {
-      data.VDC = std::stod(value);
+      parse_double(value, &data.VDC);
     } else if (key == "COOLER") {
       data.COOLER = (value == "ON");
     } else if (key == "POWER CMD") {
-      data.POWER_CMD = std::stod(value);
+      parse_double(value, &data.POWER_CMD);
     } else if (key == "TC") {
-      data.TC = std::stod(value);
+      parse_double(value, &data.TC);
     } else if (key == "RT") {
-      data.RT = std::stod(value);
+      parse_double(value, &data.RT);
     } else if (key == "WT") {
-      data.WT = std::stod(value);
+      parse_double(value, &data.WT);
     } else if (key == "VrmsOutA") {
-      data.VrmsOutA = std::stod(value);
+      parse_double(value, &data.VrmsOutA);
     } else if (key == "IrmsOutA") {
-      data.IrmsOutA = std::stod(value);
+      parse_double(value, &data.IrmsOutA);
     } else if (key == "PA") {
-      data.PA = std::stod(value);
+      parse_double(value, &data.PA);
     } else if (key == "VrmsOutB") {
-      data.VrmsOutB = std::stod(value);
+      parse_double(value, &data.VrmsOutB);
     } else if (key == "IrmsOutB") {
-      data.IrmsOutB = std::stod(value);
+      parse_double(value, &data.IrmsOutB);
     } else if (key == "PB") {
-      data.PB = std::stod(value);
+      parse_double(value, &data.PB);
     } else if (key == "RUNTIME") {
       data.RUNTIME = value;
     } else if (key == "UPTIME") {

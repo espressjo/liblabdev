@@ -1,4 +1,5 @@
 #include "mks972b-serial.h"
+#include <uics/parse_number.h>
 #include <iostream>
 #include <random>
 #include <uics/uics_config.h>
@@ -49,8 +50,7 @@ int gauge972::read_pressure(double *pressure) {
   }
   std::string pressure_str = "";
   strip_ack(buff, &pressure_str);
-  if (pressure_str.length() > 0) {
-    *pressure = std::stod(pressure_str.c_str());
+  if (pressure_str.length() > 0 && parse_double(pressure_str, pressure)) {
     return OK;
   } else {
     *pressure = 0.0;
@@ -63,8 +63,7 @@ int gauge972::read_pirani(double *pressure) {
   lireport(&buff, 128);
   std::string pressure_str = "";
   strip_ack(buff, &pressure_str);
-  if (pressure_str.length() > 0) {
-    *pressure = std::stod(pressure_str.c_str());
+  if (pressure_str.length() > 0 && parse_double(pressure_str, pressure)) {
     return OK;
   } else {
     *pressure = 0.0;
@@ -77,8 +76,7 @@ int gauge972::read_cold_cathod(double *pressure) {
   lireport(&buff, 128);
   std::string pressure_str = "";
   strip_ack(buff, &pressure_str);
-  if (pressure_str.length() > 0) {
-    *pressure = std::stod(pressure_str.c_str());
+  if (pressure_str.length() > 0 && parse_double(pressure_str, pressure)) {
     return OK;
   } else {
     *pressure = 0.0;
