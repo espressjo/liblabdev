@@ -101,6 +101,14 @@ void gauge972_e::t_main() {
 
     try {
       pressure = static_cast<double>(e_read_pressure(&ctx, gauge_idx));
+
+      bool valid = read_reading_valid(&ctx, gauge_idx);
+      if (valid) {
+        online = true;
+      } else {
+        online = false;
+      }
+      /*
       uint16_t sensor_n = read_sensor_number(&ctx, gauge_idx);
       bool valid = read_reading_valid(&ctx, gauge_idx);
       uint8_t exc = read_exception_status(&ctx, gauge_idx);
@@ -109,6 +117,7 @@ void gauge972_e::t_main() {
       std::string sname = (it != SENSOR_NAMES.end())
                               ? it->second
                               : ("Sensor #" + std::to_string(sensor_n));
+      */
       // setGauge(p_gauge, pressure);
     } catch (const std::exception &e) {
       std::cerr << "  SDO error: " << e.what() << '\n';
@@ -142,9 +151,9 @@ void gauge972_e::update() {
   if (online) {
     dprint("EtherCat Gauge: " + std::to_string(pressure));
     setGauge(p_gauge, pressure);
+  } else {
+    dprint("EtherCat Gauge Not Online ");
   }
-
-  dprint("EtherCat Gauge Not Online ");
 }
 gauge972_e::~gauge972_e() {
 
