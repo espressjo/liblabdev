@@ -1,3 +1,6 @@
+Log
+====
+- we log info in    /var/tmp/labdev now
 Dependencies
 ===
 rely on prometheus-cpp and SOEM. 
