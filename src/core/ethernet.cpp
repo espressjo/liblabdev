@@ -15,17 +15,23 @@ int ethernet::open_socket(std::string ip, uint16_t port) {
   ethernet::ip = ip;
   ethernet::p = port;
 
+  // Endpoint string reused by the log entries below.
+  const std::string target = ip + ":" + std::to_string(port);
+
   struct sockaddr_in serv_addr;
   struct hostent *server;
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd < 0) {
     status = NOK;
     fprintf(stderr, "ERROR opening socket\n");
+    labdev::log_error("ethernet", "socket() failed for " + target + ": " +
+                                      std::string(strerror(errno)));
     return NOK;
   }
   server = gethostbyname(ip.c_str());
   if (server == NULL) {
     fprintf(stderr, "ERROR, no such host\n");
+    labdev::log_error("ethernet", "unknown host '" + ip + "'");
     status = NOK;
     return NOK;
   }
@@ -37,10 +43,13 @@ int ethernet::open_socket(std::string ip, uint16_t port) {
       htons(p); /* converting port number using function htons() */
   if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     fprintf(stderr, "ERROR connecting\n");
+    labdev::log_error("ethernet", "connect to " + target + " failed: " +
+                                      std::string(strerror(errno)));
     status = NOK;
     return NOK;
   }
   status = OPEN;
+  labdev::log_info("ethernet", "connected to " + target);
   return OK;
 }
 int ethernet::open_socket(std::string ip, uint16_t port, int timeout)
@@ -49,12 +58,17 @@ int ethernet::open_socket(std::string ip, uint16_t port, int timeout)
   ethernet::ip = ip;
   ethernet::p = port;
 
+  // Endpoint string reused by the log entries below.
+  const std::string target = ip + ":" + std::to_string(port);
+
   struct sockaddr_in serv_addr;
   struct hostent *server;
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd < 0) {
     status = NOK;
     fprintf(stderr, "ERROR opening socket\n");
+    labdev::log_error("ethernet", "socket() failed for " + target + ": " +
+                                      std::string(strerror(errno)));
     return NOK;
   }
 
@@ -64,6 +78,9 @@ int ethernet::open_socket(std::string ip, uint16_t port, int timeout)
 
   if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tout, sizeof tout) < 0) {
     perror("setsockopt failed\n");
+    labdev::log_error("ethernet", "cannot set a " + std::to_string(timeout) +
+                                      " s receive timeout on " + target + ": " +
+                                      std::string(strerror(errno)));
     status = NOK;
     return NOK;
   }
@@ -71,6 +88,7 @@ int ethernet::open_socket(std::string ip, uint16_t port, int timeout)
   server = gethostbyname(ip.c_str());
   if (server == NULL) {
     fprintf(stderr, "ERROR, no such host\n");
+    labdev::log_error("ethernet", "unknown host '" + ip + "'");
     status = NOK;
     return NOK;
   }
@@ -84,12 +102,16 @@ int ethernet::open_socket(std::string ip, uint16_t port, int timeout)
   printf("ok-2\n");
   if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     fprintf(stderr, "ERROR connecting\n");
+    labdev::log_error("ethernet", "connect to " + target + " failed: " +
+                                      std::string(strerror(errno)));
     status = NOK;
     return NOK;
   }
 
   printf("ok-3\n");
   status = OPEN;
+  labdev::log_info("ethernet", "connected to " + target + ", receive timeout " +
+                                   std::to_string(timeout) + " s");
   return OK;
 }
 /*
@@ -228,6 +250,8 @@ int ethernet::open_socket2(std::string ip, uint16_t port, int timeout)
 void ethernet::close_socket(void) {
   close(sockfd);
   status = CLOSE;
+  labdev::log_debug("ethernet",
+                    "socket closed for " + ip + ":" + std::to_string(p));
 }
 
 int ethernet::read_E(std::string *response) {

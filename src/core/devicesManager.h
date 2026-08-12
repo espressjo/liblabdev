@@ -1,6 +1,7 @@
 #ifndef DEVICEMANAGER_H
 #define DEVICEMANAGER_H
 
+#include "labdev_log.h"
 #include "labdevices.h"
 #include <atomic>
 #include <chrono>
@@ -20,10 +21,17 @@ struct ManagedDevice {
   std::chrono::steady_clock::time_point lastUpdate;
   std::atomic<int> errorCount;
 
+  //:::   Logging state, so the polling loop can report a fault once    :::
+  //:::   instead of once per cycle. lastOnline is tri-state: -1 means  :::
+  //:::   isOnline() has not been sampled yet.                          :::
+  std::atomic<int> lastOnline;
+  labdev::log_latch updateFault;
+
   ManagedDevice(std::shared_ptr<labdevices> dev, const std::string &n,
                 std::chrono::milliseconds interval)
       : device(dev), name(n), enabled(true), pollInterval(interval),
-        lastUpdate(std::chrono::steady_clock::now()), errorCount(0) {}
+        lastUpdate(std::chrono::steady_clock::now()), errorCount(0),
+        lastOnline(-1) {}
 };
 
 class DeviceManager {
@@ -111,6 +119,9 @@ public:
 private:
   // Main update loop
   void run();
+
+  // Logs online <-> offline changes only, see the definition.
+  void logOnlineTransition(ManagedDevice &dev);
 
   // Helper to find device by name
   std::vector<std::shared_ptr<ManagedDevice>>::iterator

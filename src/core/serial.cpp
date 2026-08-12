@@ -66,6 +66,9 @@ int serial::ouvrirport(
   if ((fd = open(port.c_str(), O_RDWR | O_NOCTTY)) == NOK) {
     fprintf(stderr, "Erreur lors de l'ouverture du port serie %s, fd =%d .\n",
             port.c_str(), fd);
+    /* Journalise: appele une seule fois a l'initialisation du peripherique. */
+    labdev::log_error("serial", "cannot open " + port + ": " +
+                                    std::string(strerror(errno)));
     status = NOK;
     return NOK;
   }
@@ -79,6 +82,8 @@ int serial::ouvrirport(
   if (tcgetattr(fd, &serie) < 0) {
     fprintf(stderr,
             "Erreur lors de la lecture de la configuration du port serie.\n");
+    labdev::log_error("serial", "tcgetattr failed on " + port + ": " +
+                                    std::string(strerror(errno)));
     status = NOK;
     close(fd);
     return NOK;
@@ -185,12 +190,16 @@ int serial::ouvrirport(
 
   if (cfsetispeed(&serie, baud) != 0) {
     fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
+    labdev::log_error("serial", "cfsetispeed failed on " + port + " at " +
+                                    std::to_string(vitesse) + " baud");
     status = NOK;
     close(fd);
     return NOK;
   }
   if (cfsetospeed(&serie, baud) != 0) {
     fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
+    labdev::log_error("serial", "cfsetospeed failed on " + port + " at " +
+                                    std::to_string(vitesse) + " baud");
     status = NOK;
     close(fd);
     return NOK;
@@ -201,6 +210,8 @@ int serial::ouvrirport(
     int _status;
     if (ioctl(fd, TIOCMGET, &_status) < 0) {
       fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
+      labdev::log_error("serial", "TIOCMGET failed on " + port + ": " +
+                                      std::string(strerror(errno)));
       status = NOK;
       close(fd);
       return NOK;
@@ -208,6 +219,8 @@ int serial::ouvrirport(
     _status |= TIOCM_DTR;
     if (ioctl(fd, TIOCMSET, &_status) < 0) {
       fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
+      labdev::log_error("serial", "TIOCMSET (DTR high) failed on " + port +
+                                      ": " + std::string(strerror(errno)));
       status = NOK;
       close(fd);
       return NOK;
@@ -216,6 +229,8 @@ int serial::ouvrirport(
 
   if (tcsetattr(fd, TCSANOW, &serie) < 0) {
     fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
+    labdev::log_error("serial", "tcsetattr failed on " + port + ": " +
+                                    std::string(strerror(errno)));
     status = NOK;
     close(fd);
     return NOK;
@@ -223,6 +238,9 @@ int serial::ouvrirport(
 
   idport = fd;
   status = OPEN;
+  labdev::log_info("serial", "opened " + port + " at " +
+                                 std::to_string(vitesse) + " baud (fd " +
+                                 std::to_string(fd) + ")");
   last_call_time = std::chrono::steady_clock::now();
   return 0;
 }
@@ -247,6 +265,9 @@ int serial::configport() {
   if (tcgetattr(fd, &serie) < 0) {
     fprintf(stderr,
             "Erreur lors de la lecture de la configuration du port serie.\n");
+    labdev::log_error("serial", "configport: tcgetattr failed on fd " +
+                                    std::to_string(fd) + ": " +
+                                    std::string(strerror(errno)));
     status = NOK;
     return NOK;
   }
@@ -255,6 +276,9 @@ int serial::configport() {
 
   if (tcsetattr(fd, TCSANOW, &serie) < 0) {
     fprintf(stderr, "Erreur lors de la configuration du port serie.\n");
+    labdev::log_error("serial", "configport: tcsetattr failed on fd " +
+                                    std::to_string(fd) + ": " +
+                                    std::string(strerror(errno)));
     status = NOK;
     return (NOK);
   }
@@ -273,9 +297,12 @@ int serial::configport() {
 int serial::fermerport() {
   if (close(fd) == NOK) {
     fprintf(stderr, "Erreur lors de la fermeture du port serie.\n");
+    labdev::log_error("serial", "cannot close fd " + std::to_string(fd) + ": " +
+                                    std::string(strerror(errno)));
     return NOK;
   }
   status = CLOSE;
+  labdev::log_info("serial", "closed fd " + std::to_string(fd));
   return OK;
 }
 

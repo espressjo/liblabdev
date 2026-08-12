@@ -1,6 +1,7 @@
 #ifndef ETHERNET_H
 #define ETHERNET_H
 
+#include "labdev_log.h"
 #include "states_io.h"
 #include <netdb.h>
 #include <netinet/in.h>

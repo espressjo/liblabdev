@@ -1,4 +1,5 @@
 #include "labdevices.h"
+#include "labdev_log.h"
 #include <cmath>
 #include <iostream>
 labdevices::labdevices(std::string devicename, prometheus::Registry *registry)
@@ -6,9 +7,18 @@ labdevices::labdevices(std::string devicename, prometheus::Registry *registry)
   device_name = devicename;
   setRegistry(registry);
   online = false;
+  labdev::log_info(device_name, "device created");
+  if (!this->registry) {
+    // Gauges are created by the derived constructor, which runs next. Without
+    // a registry every addGauge() there is a no-op and the device will never
+    // expose a metric, even if setRegistry() is called afterwards.
+    labdev::log_warn(device_name,
+                     "constructed without a registry, gauges are disabled");
+  }
 }
 
 labdevices::~labdevices() {
+  labdev::log_debug(device_name, "device destroyed");
   // Clean up: Families are owned by the registry, so we don't delete them
   // Just clear our maps
   gaugeSensor.clear();
@@ -59,11 +69,15 @@ std::vector<std::string> labdevices::getGaugeNames() const {
 bool labdevices::isOnline() { return online; }
 bool labdevices::addGauge(std::string name, std::string description) {
   if (!registry) {
+    labdev::log_warn(device_name,
+                     "gauge '" + name + "' not created, no registry");
     return false;
   }
 
   // Check if gauge already exists
   if (gaugeSensor.find(name) != gaugeSensor.end()) {
+    labdev::log_warn(device_name,
+                     "gauge '" + name + "' already exists, not recreated");
     return false; // Already exists, don't create duplicate
   }
   // Create family and gauge

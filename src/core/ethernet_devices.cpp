@@ -20,21 +20,34 @@ bool ethernet_device::connect(std::string IP, int port) {
   ethernet_device::port = port;
   ethernet_device::IP = IP;
 
+  const std::string target = IP + ":" + std::to_string(port);
+
   if (connection_timeout > 0) {
     if (ethernet_device::_connect_w_timeout()) {
 
       online = true;
+      labdev::log_info(device_name,
+                       "connected to " + target + ", connection timeout " +
+                           std::to_string(connection_timeout) + " s");
       return true;
     } else {
       online = false;
+      labdev::log_error(device_name,
+                        "cannot connect to " + target + " within " +
+                            std::to_string(connection_timeout) + " s");
       return false;
     }
   } else {
     if (ethernet_device::_connect()) {
       online = true;
+      //:::   No connection timeout: a dead instrument blocks the caller  :::
+      //:::   in connect(). Worth a trace when hunting a hung daemon.     :::
+      labdev::log_info(device_name, "connected to " + target +
+                                        ", no connection timeout set");
       return true;
     } else {
       online = false;
+      labdev::log_error(device_name, "cannot connect to " + target);
       return false;
     }
   }
@@ -222,9 +235,17 @@ bool ethernet_device::reconnect() {
   }
   if (!_connect_w_timeout()) {
     online = false;
+    //:::   Latched: this path is retried on every read and write while   :::
+    //:::   the instrument is down.                                       :::
+    reconnect_fault.fail(device_name + ": lost the connection to " + IP + ":" +
+                         std::to_string(port) + " and cannot reconnect");
     return false; // Reconnection failed
   }
   online = true;
+  if (reconnect_fault.failed()) {
+    reconnect_fault.clear(device_name + ": reconnected to " + IP + ":" +
+                          std::to_string(port));
+  }
   return true; // Successfully reconnected
 }
 
@@ -263,6 +284,8 @@ void ethernet_device::close_connection() {
     close(sockfd);
     online = false;
     sockfd = -1; // Mark as invalid
+    labdev::log_info(device_name, "connection to " + IP + ":" +
+                                      std::to_string(port) + " closed");
   }
 }
 ethernet_device::~ethernet_device() {

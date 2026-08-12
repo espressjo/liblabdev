@@ -1,5 +1,6 @@
 #ifndef SERIAL_H
 #define SERIAL_H
+#include "labdev_log.h"
 #include "states_io.h" /* read, write, close */
 #include <chrono>
 #include <ctype.h> /* tolower */

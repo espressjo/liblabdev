@@ -32,6 +32,11 @@ private:
   int port;
   int sockfd;
   std::string IP;
+
+  //:::   reconnect() is reached from r_socket() / w_socket(), so it     :::
+  //:::   runs at the poll rate while the instrument is unreachable.     :::
+  //:::   The latch keeps that to one entry per outage.                  :::
+  labdev::log_latch reconnect_fault;
 };
 
 #endif

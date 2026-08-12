@@ -1,6 +1,7 @@
 #ifndef MKS972B_ETHERCAT_H
 #define MKS972B_ETHERCAT_H
 
+#include "labdev_log.h"
 #include "labdevices.h"
 #include "mks972b-ethercat-utility.h"
 #include <thread>
@@ -48,6 +49,14 @@ private:
   void t_main();
   std::thread _thread;
   void dump_pdo(const uint8_t *data, int len);
+
+  // ---------------------------------------------------------------------------
+  // Latched faults: t_main() spins at CYCLE_TIME_S, so a persistent problem
+  // must not produce one log entry per cycle.
+  // ---------------------------------------------------------------------------
+  labdev::log_latch sdo_fault;
+  labdev::log_latch reading_fault;
+
   // ---------------------------------------------------------------------------
   // Signal handling
   // ---------------------------------------------------------------------------

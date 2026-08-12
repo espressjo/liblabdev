@@ -18,6 +18,7 @@ bool DeviceManager::addDevice(std::shared_ptr<labdevices> device,
                               std::chrono::milliseconds pollInterval) {
   if (!device) {
     std::cerr << "Cannot add null device" << std::endl;
+    labdev::log_error("DeviceManager", "cannot add a null device");
     return false;
   }
 
@@ -27,6 +28,8 @@ bool DeviceManager::addDevice(std::shared_ptr<labdevices> device,
   if (findDevice(device->device_name) != devices_.end()) {
     std::cerr << "Device '" << device->device_name << "' already exists"
               << std::endl;
+    labdev::log_warn("DeviceManager", "device '" + device->device_name +
+                                          "' already managed, not added again");
     return false;
   }
 
@@ -44,6 +47,10 @@ bool DeviceManager::addDevice(std::shared_ptr<labdevices> device,
 
   std::cout << "Added device: " << device->device_name
             << " (poll interval: " << interval.count() << "ms)" << std::endl;
+  labdev::log_info("DeviceManager", "added device '" + device->device_name +
+                                        "', poll interval " +
+                                        std::to_string(interval.count()) +
+                                        " ms");
 
   return true;
 }
@@ -95,6 +102,7 @@ bool DeviceManager::removeDevice(const std::string &deviceName) {
 
   devices_.erase(it);
   std::cout << "Removed device: " << deviceName << std::endl;
+  labdev::log_info("DeviceManager", "removed device '" + deviceName + "'");
 
   return true;
 }
@@ -121,6 +129,7 @@ bool DeviceManager::enableDevice(const std::string &deviceName) {
   (*it)->enabled = true;
   (*it)->errorCount = 0; // Reset error count on enable
   std::cout << "Enabled device: " << deviceName << std::endl;
+  labdev::log_info("DeviceManager", "enabled device '" + deviceName + "'");
 
   return true;
 }
@@ -135,6 +144,7 @@ bool DeviceManager::disableDevice(const std::string &deviceName) {
 
   (*it)->enabled = false;
   std::cout << "Disabled device: " << deviceName << std::endl;
+  labdev::log_info("DeviceManager", "disabled device '" + deviceName + "'");
 
   return true;
 }
@@ -161,6 +171,11 @@ void DeviceManager::start() {
   updateThread_ = std::thread(&DeviceManager::run, this);
 
   std::cout << "DeviceManager started" << std::endl;
+  labdev::log_info("DeviceManager",
+                   "polling thread started, " +
+                       std::to_string(getDeviceCount()) + " device(s), " +
+                       "default interval " +
+                       std::to_string(defaultPollInterval_.count()) + " ms");
 }
 
 void DeviceManager::stop() {
@@ -178,6 +193,30 @@ void DeviceManager::stop() {
 
   running_ = false;
   std::cout << "DeviceManager stopped" << std::endl;
+  labdev::log_info("DeviceManager", "polling thread stopped");
+}
+
+//:::   Called once per successful update(). Writes only when the       :::
+//:::   device changed state, so a permanently offline device costs a   :::
+//:::   single line. This is the generic hook that reports every        :::
+//:::   device going offline, whatever the transport, without any       :::
+//:::   logging in the transports' per-transaction helpers.             :::
+void DeviceManager::logOnlineTransition(ManagedDevice &dev) {
+  const int isOnline = dev.device->isOnline() ? 1 : 0;
+  const int previous = dev.lastOnline.exchange(isOnline);
+
+  if (previous == isOnline) {
+    return;
+  }
+
+  if (isOnline) {
+    labdev::log_info(dev.name, previous < 0 ? "online" : "back online");
+  } else {
+    labdev::log_warn(dev.name, previous < 0
+                                   ? "offline on first poll"
+                                   : "went offline (update() reported a "
+                                     "failed reading)");
+  }
 }
 
 void DeviceManager::run() {
@@ -208,11 +247,24 @@ void DeviceManager::run() {
           managedDev->lastUpdate = now;
           managedDev->errorCount = 0; // Reset error count on success
 
+          // Only builds the string on the edge, never on a healthy cycle.
+          if (managedDev->updateFault.failed()) {
+            managedDev->updateFault.clear(managedDev->name +
+                                          ": update() no longer throwing");
+          }
+          logOnlineTransition(*managedDev);
+
         } catch (const std::exception &e) {
           int errorCount = ++managedDev->errorCount;
           std::cerr << "Error updating device '" << managedDev->name
                     << "': " << e.what() << " (error count: " << errorCount
                     << ")" << std::endl;
+
+          //:::   Latched: a device throwing on every cycle would          :::
+          //:::   otherwise fill the log at the poll rate. The disable      :::
+          //:::   below is logged unconditionally, it can only fire once.   :::
+          managedDev->updateFault.fail(managedDev->name +
+                                       ": update() threw: " + e.what());
 
           if (errorCallback_) {
             errorCallback_(managedDev->name, e.what());
@@ -224,12 +276,19 @@ void DeviceManager::run() {
             managedDev->enabled = false;
             std::cerr << "Device '" << managedDev->name << "' disabled after "
                       << errorCount << " consecutive errors" << std::endl;
+            labdev::log_error(managedDev->name,
+                              "disabled by the manager after " +
+                                  std::to_string(errorCount) +
+                                  " consecutive errors");
           }
 
         } catch (...) {
           int errorCount = ++managedDev->errorCount;
           std::cerr << "Unknown error updating device '" << managedDev->name
                     << "'" << std::endl;
+
+          managedDev->updateFault.fail(managedDev->name +
+                                       ": update() threw a non std::exception");
 
           if (errorCallback_) {
             errorCallback_(managedDev->name, "Unknown error");
@@ -238,6 +297,10 @@ void DeviceManager::run() {
           if (maxErrorsBeforeDisable_ > 0 &&
               errorCount >= maxErrorsBeforeDisable_) {
             managedDev->enabled = false;
+            labdev::log_error(managedDev->name,
+                              "disabled by the manager after " +
+                                  std::to_string(errorCount) +
+                                  " consecutive unknown errors");
           }
         }
       }
@@ -274,6 +337,9 @@ void DeviceManager::setDevicePollInterval(const std::string &deviceName,
     (*it)->pollInterval = interval;
     std::cout << "Set poll interval for device '" << deviceName << "' to "
               << interval.count() << "ms" << std::endl;
+    labdev::log_info("DeviceManager",
+                     "poll interval for '" + deviceName + "' set to " +
+                         std::to_string(interval.count()) + " ms");
   }
 }
 
