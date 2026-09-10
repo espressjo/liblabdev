@@ -1,10 +1,10 @@
 #include "sunpowerDS30.h"
 #include "labdevices.h"
-#include <uics/parse_number.h>
 #include "serial.h"
 #include "sunpowerDS30_t.h"
 #include <ctime>
 #include <prometheus/registry.h>
+#include <uics/parse_number.h>
 #include <uics/uics_config.h>
 
 sunpowerDS30::sunpowerDS30(std::string configfile, std::string devicename,
@@ -189,7 +189,17 @@ void sunpowerDS30::update() {
     online = false;
   }
 }
+bool sunpowerDS30::print_vibration() {
 
+  std::string buff = "";
+  if (!basic_cmd("vibe", buff)) {
+    online = false;
+    return false;
+  }
+  std::cout << buff << std::endl;
+  online = true;
+  return true;
+}
 bool sunpowerDS30::get_status(sunpower_t &s_t) {
   std::string buff = "";
   if (!basic_cmd("status", buff)) {

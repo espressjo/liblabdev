@@ -26,7 +26,7 @@ public:
 
   void printStatus();
   bool AVC(bool status);
-  bool get_vibration();
+  bool print_vibration();
 
   bool basic_cmd(std::string cmd, std::string &ret);
   void update();
