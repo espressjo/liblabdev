@@ -261,15 +261,6 @@ bool sunpowerDS30::setCoolerOff() {
   return true;
 }
 
-bool sunpowerDS30::get_vibration() {
-  std::string buff = "";
-  if (!basic_cmd("VIBE", buff)) {
-    std::cout << "oups!!!" << std::endl;
-    return false;
-  }
-
-  return true;
-}
 bool sunpowerDS30::basic_cmd(std::string cmd, std::string &ret) {
   // make sure \r
   std::string original_cmd = cmd;
