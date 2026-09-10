@@ -189,9 +189,8 @@ void sunpowerDS30::update() {
     online = false;
   }
 }
-bool sunpowerDS30::print_vibration() {
-
-  std::string buff = "";
+bool sunpowerDS30::get_vibration(std::string &buff) {
+  buff = "";
   if (!basic_cmd("vibe", buff)) {
     online = false;
     return false;
