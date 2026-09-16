@@ -1,4 +1,6 @@
 -I./
+-I../../core/
+-I/usr/local/include
 -I/opt/labdevice/include
 -xc++
 -I/opt/UICS/include

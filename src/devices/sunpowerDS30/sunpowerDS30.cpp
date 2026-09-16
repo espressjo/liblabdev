@@ -51,6 +51,11 @@ sunpowerDS30::sunpowerDS30(std::string configfile, std::string devicename,
   addGauge("PB", "sunpower");
   addGauge("VrmsOutB", "sunpower");
   addGauge("IrmsOutB", "sunpower");
+  addGauge("C_ERROR", "sunpower controller error bit field, LSB on the right, "
+                      "as a number (0 = no error, -1 = unreadable)");
+  addGauge("NC_ERROR",
+           "sunpower non-controller error bit field, LSB on the right, "
+           "as a number (0 = no error, -1 = unreadable)");
 }
 
 sunpowerDS30::sunpowerDS30(std::string port, int baudrate,
@@ -89,6 +94,11 @@ sunpowerDS30::sunpowerDS30(std::string port, int baudrate,
   addGauge("PB", "sunpower");
   addGauge("VrmsOutB", "sunpower");
   addGauge("IrmsOutB", "sunpower");
+  addGauge("C_ERROR", "sunpower controller error bit field, LSB on the right, "
+                      "as a number (0 = no error, -1 = unreadable)");
+  addGauge("NC_ERROR",
+           "sunpower non-controller error bit field, LSB on the right, "
+           "as a number (0 = no error, -1 = unreadable)");
 }
 
 void sunpowerDS30::set_timeout(int to_s) { timeout = to_s; }
@@ -111,6 +121,52 @@ std::string sunpowerDS30::trim(const std::string &str) {
   if (start == std::string::npos)
     return "";
   return str.substr(start, end - start + 1);
+}
+
+//:::   "0000 0000 0000 0001" -> 1, "0000 0000 0000 0011" -> 3, so     :::
+//:::   simultaneous errors stay distinguishable in a single gauge.    :::
+//:::   Nothing is assumed about the width of the field or the way it  :::
+//:::   is grouped: leading zeros are dropped, separators are skipped  :::
+//:::   wherever they fall, and any character that is neither a bit    :::
+//:::   nor a separator rejects the whole string. See the header.      :::
+bool sunpowerDS30::parse_error_bits(const std::string &input, double &value) {
+  value = -1.0;
+
+  size_t i = input.find_first_not_of(" \t\r\n");
+  if (i == std::string::npos)
+    return false; // empty, or nothing but whitespace
+
+  // An explicit binary prefix, should the firmware ever add one.
+  if (input.compare(i, 2, "0b") == 0 || input.compare(i, 2, "0B") == 0)
+    i += 2;
+
+  uint64_t bits = 0;
+  size_t ndigits = 0; // bits seen, leading zeros included
+  size_t nsig = 0;    // bits kept, leading zeros dropped
+
+  for (; i < input.size(); ++i) {
+    const unsigned char c = static_cast<unsigned char>(input[i]);
+    if (c == '0' || c == '1') {
+      ++ndigits;
+      if (nsig == 0 && c == '0')
+        continue; // leading zero, the field width is not fixed
+      if (nsig >= 53)
+        return false; // wider than a double represents exactly
+      bits = (bits << 1) | static_cast<uint64_t>(c - '0');
+      ++nsig;
+    } else if (std::isspace(c) || c == '_' || c == ',' || c == '-' ||
+               c == '|') {
+      continue; // group separator, whatever the grouping is
+    } else {
+      return false; // not a bit field
+    }
+  }
+
+  if (ndigits == 0)
+    return false; // a prefix and separators only
+
+  value = static_cast<double>(bits);
+  return true;
 }
 
 sunpower_t sunpowerDS30::parseStatus(const std::string &input) {
@@ -183,6 +239,24 @@ void sunpowerDS30::update() {
     setGauge("IrmsOutB", status_t.IrmsOutB);
     setGauge("PA", status_t.PA);
     setGauge("PB", status_t.PB);
+
+    // parse_error_bits leaves the value at -1 when the field is missing
+    // or malformed; the gauge carries that through as "unreadable".
+    double c_error = -1.0;
+    double nc_error = -1.0;
+    const bool c_ok = parse_error_bits(status_t.C_ERROR, c_error);
+    const bool nc_ok = parse_error_bits(status_t.NC_ERROR, nc_error);
+    setGauge("C_ERROR", c_error);
+    setGauge("NC_ERROR", nc_error);
+
+    if (c_ok && nc_ok) {
+      if (error_fault.failed())
+        error_fault.clear(device_name + ": error bit fields readable again");
+    } else if (!error_fault.failed()) {
+      error_fault.fail(
+          device_name + ": cannot decode error bit field, C ERROR=\"" +
+          status_t.C_ERROR + "\" NC ERROR=\"" + status_t.NC_ERROR + "\"");
+    }
 
     online = true;
   } else {
