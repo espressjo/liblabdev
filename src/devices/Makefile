@@ -5,6 +5,7 @@ all:
 	@cd mks972b-serial && make all
 	@cd mks972b-ethercat && make all
 	@cd dummy-device && make all
+	@cd coolpak && make all
 
 	
 clean:
@@ -14,3 +15,4 @@ clean:
 	@cd mks972b-serial && make clean
 	@cd mks972b-ethercat && make clean
 	@cd dummy-device && make clean
+	@cd coolpak && make clean

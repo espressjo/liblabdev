@@ -1,0 +1,12 @@
+-I./
+-I../../core/
+-I/usr/local/include
+-I/opt/labdevice/include
+-xc++
+-I/opt/UICS/include
+-std=c++17
+-I/usr/include/c++/11
+-I/usr/include/c++/13
+-I/usr/include/x86_64-linux-gnu/c++/11
+-I/usr/include/x86_64-linux-gnu/c++/13
+

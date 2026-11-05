@@ -4,29 +4,46 @@
 #include "serial.h"
 #include <ctime>
 #include <prometheus/registry.h>
+#include <uics/uics_config.h>
+
+sunpowerMT::sunpowerMT(std::string configfile, std::string devicename,
+                       prometheus::Registry *registry = nullptr)
+    : labdevices(devicename, registry) {
+  sunpowerMT::port = cfg_get_string(configfile, "DEVICE", "/dev/ttyACM0");
+  sunpowerMT::baudrate = cfg_get_int(configfile, "BAUDRATE", 9600);
+  ignore_cariage_return = false;
+  init_gauges();
+  status = ouvrirport(sunpowerMT::port, sunpowerMT::baudrate);
+  if (status != OK) {
+    labdev::log_error(device_name, "cannot open " + sunpowerMT::port + " at " +
+                                       std::to_string(sunpowerMT::baudrate) +
+                                       " baud (from " + configfile + ")");
+  }
+}
 
 sunpowerMT::sunpowerMT(std::string port, int baudrate, std::string devicename,
-                   prometheus::Registry *registry = nullptr)
+                       prometheus::Registry *registry = nullptr)
     : labdevices(devicename, registry) {
   sunpowerMT::port = port;
   sunpowerMT::baudrate = baudrate;
   ignore_cariage_return = false;
+  init_gauges();
   status = ouvrirport(port, baudrate);
+  if (status != OK) {
+    labdev::log_error(device_name, "cannot open " + port + " at " +
+                                       std::to_string(baudrate) + " baud");
+  }
+}
 
+// Registers the gauges that update() actually sets.
+void sunpowerMT::init_gauges() {
   timeout = -1;
-  addGauge("VDC", "DC voltage of sunpower");
-
-  addGauge("POWER_CMD", "sunpower");
-  addGauge("TC", "sunpower");
-  addGauge("RT", "sunpower");
-  addGauge("WT", "sunpower");
-  addGauge("VrmsOutA", "sunpower");
-  addGauge("IrmsOutA", "sunpower");
-  addGauge("PA", "sunpower");
-
-  addGauge("PB", "sunpower");
-  addGauge("VrmsOutB", "sunpower");
-  addGauge("IrmsOutB", "sunpower");
+  addGauge("Power_Measured", "sunpower measured power (W)");
+  addGauge("Power_Commanded", "sunpower commanded power (W)");
+  addGauge("Coldhead_Temperature", "sunpower coldhead temperature");
+  addGauge("Reject_Temperature", "sunpower reject temperature");
+  addGauge("Target_Temperature", "sunpower target temperature");
+  addGauge("Cooler", "sunpower cooler state (1 = ON, 0 = OFF)");
 }
 
 void sunpowerMT::set_timeout(int to_s) { timeout = to_s; }
@@ -103,14 +120,9 @@ void sunpowerMT::update() {
 bool sunpowerMT::get_status(sunpowerMT_t &s_t) {
   std::string buff = "", buffer_cooler;
 
-  if (!basic_cmd("status", buff)) {
+  if (!basic_cmd("status", buff) || !basic_cmd("COOLER", buffer_cooler)) {
     online = false;
-  }
-  if (!basic_cmd("COOLER", buffer_cooler)) {
-    online = false;
-  }
-
-  if (buffer_cooler.find("ON") != std::string::npos) {
+    return false;
   }
 
   s_t = parseStatus(buff);
@@ -122,6 +134,7 @@ bool sunpowerMT::get_status(sunpowerMT_t &s_t) {
     s_t.cooler_status = 0.0;
   }
 
+  online = true;
   return true;
 }
 void sunpowerMT::printStatus() {
@@ -172,27 +185,34 @@ bool sunpowerMT::basic_cmd(std::string cmd, std::string &ret) {
   ret = buff.substr(buff.find('\r') + 1, buff.length());
   return true;
 }
-bool sunpowerMT::set_cooler_on() {
+bool sunpowerMT::setCoolerOn() {
   std::string buffer = "";
   if (!basic_cmd("COOLER=ON", buffer)) {
     online = false;
+    labdev::log_warn(device_name, "no reply to COOLER=ON");
     return false;
   }
-  if (buffer.find("ON") != std::string::npos) {
-    return true;
-  } else {
+  if (buffer.find("ON") == std::string::npos) {
+    labdev::log_warn(device_name,
+                     "COOLER=ON not confirmed, controller said: " + buffer);
     return false;
   }
+  labdev::log_info(device_name, "cooler set ON");
+  return true;
 }
-bool sunpowerMT::set_cooler_off() {
+
+bool sunpowerMT::setCoolerOff() {
   std::string buffer = "";
   if (!basic_cmd("COOLER=OFF", buffer)) {
     online = false;
+    labdev::log_warn(device_name, "no reply to COOLER=OFF");
     return false;
   }
-  if (buffer.find("OFF") != std::string::npos) {
-    return true;
-  } else {
+  if (buffer.find("OFF") == std::string::npos) {
+    labdev::log_warn(device_name,
+                     "COOLER=OFF not confirmed, controller said: " + buffer);
     return false;
   }
+  labdev::log_info(device_name, "cooler set OFF");
+  return true;
 }
