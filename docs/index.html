@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>labdev.lib — lab instrument drivers that speak Prometheus</title>
+<meta name="description" content="A C++17 library of laboratory instrument drivers that publish every reading as a Prometheus gauge.">
+<style>
+  :root {
+    --bg: #0f1419; --panel: #171d25; --panel2: #1e2630; --text: #e6e9ee;
+    --muted: #93a0b0; --accent: #ff8a3d; --accent2: #4fc3f7; --border: #2a3441;
+    --code: #0b0f14; --ok: #5fd38d;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f7f8fa; --panel: #ffffff; --panel2: #f0f2f5; --text: #1b2430;
+      --muted: #5b6878; --accent: #d9570f; --accent2: #0a7bbf; --border: #dde2e9;
+      --code: #f3f5f8; --ok: #1f9d55;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; }
+  code { background: var(--panel2); padding: .1em .4em; border-radius: 4px; }
+  pre {
+    background: var(--code); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1rem 1.2rem; overflow-x: auto; line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 1.25rem; }
+
+  nav {
+    position: sticky; top: 0; z-index: 10; backdrop-filter: blur(8px);
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .wrap { display: flex; gap: 1.2rem; align-items: center; height: 54px; overflow-x: auto; white-space: nowrap; }
+  nav .brand { font-weight: 700; color: var(--text); margin-right: auto; }
+  nav a { color: var(--muted); font-size: .92rem; }
+  nav a:hover { color: var(--text); text-decoration: none; }
+
+  header.hero { padding: 4.5rem 0 3rem; text-align: center; }
+  .hero h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); margin: 0 0 .6rem; letter-spacing: -.02em; }
+  .hero h1 span { color: var(--accent); }
+  .hero p.lead { color: var(--muted); font-size: 1.2rem; max-width: 720px; margin: 0 auto 1.8rem; }
+  .badges { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
+  .badge { border: 1px solid var(--border); background: var(--panel); border-radius: 999px; padding: .2rem .8rem; font-size: .82rem; color: var(--muted); }
+  .btn {
+    display: inline-block; padding: .65rem 1.2rem; border-radius: 8px; font-weight: 600;
+    background: var(--accent); color: #fff; margin: 0 .3rem;
+  }
+  .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn:hover { text-decoration: none; filter: brightness(1.1); }
+
+  section { padding: 3rem 0; border-top: 1px solid var(--border); }
+  section h2 { font-size: 1.8rem; margin: 0 0 .4rem; letter-spacing: -.01em; }
+  section h2 + p.sub { color: var(--muted); margin-top: 0; }
+  h3 { margin-top: 2rem; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.2rem; }
+  .card h3 { margin: 0 0 .4rem; font-size: 1.05rem; }
+  .card p { margin: 0; color: var(--muted); font-size: .95rem; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; font-size: .93rem; }
+  th, td { text-align: left; padding: .65rem .9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--panel2); color: var(--muted); font-weight: 600; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+  tr:last-child td { border-bottom: none; }
+  .tbl { overflow-x: auto; }
+  .tag { display: inline-block; font-size: .75rem; padding: .05rem .5rem; border-radius: 999px; border: 1px solid var(--border); }
+  .tag.eth { color: var(--accent2); } .tag.ser { color: var(--accent); } .tag.ecat { color: var(--ok); } .tag.none { color: var(--muted); }
+
+  .diagram { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin: 1.2rem 0; overflow-x: auto; text-align: center; }
+  .callout { border-left: 4px solid var(--accent); background: var(--panel); padding: .9rem 1.2rem; border-radius: 0 10px 10px 0; margin: 1.2rem 0; }
+  .callout strong { color: var(--accent); }
+
+  .tabs { display: flex; gap: .4rem; margin-top: 1.2rem; }
+  .tab { background: var(--panel); border: 1px solid var(--border); color: var(--muted); padding: .45rem .9rem; border-radius: 8px 8px 0 0; cursor: pointer; font: inherit; font-size: .9rem; }
+  .tab.active { background: var(--code); color: var(--text); border-bottom-color: var(--code); }
+  .tabpane { display: none; } .tabpane.active { display: block; }
+  .tabpane pre { border-top-left-radius: 0; margin-top: 0; }
+
+  footer { border-top: 1px solid var(--border); padding: 2rem 0 3rem; color: var(--muted); font-size: .9rem; text-align: center; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <span class="brand">labdev.lib</span>
+    <a href="#why">Why</a>
+    <a href="#devices">Devices</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#quickstart">Quick start</a>
+    <a href="#manager">DeviceManager</a>
+    <a href="#new-device">New device</a>
+    <a href="#build">Build</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>lab<span>dev</span>.lib</h1>
+    <p class="lead">A C++17 library of laboratory instrument drivers that publish every reading as a <strong>Prometheus gauge</strong>.</p>
+    <div class="badges">
+      <span class="badge">C++17</span>
+      <span class="badge">Prometheus metrics</span>
+      <span class="badge">Ethernet · Serial · EtherCAT</span>
+      <span class="badge">MIT</span>
+    </div>
+    <a class="btn" href="#quickstart">Get started</a>
+    <a class="btn ghost" href="https://github.com/espressjo/liblabdev">View on GitHub</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section id="why">
+  <h2>Why labdev.lib</h2>
+  <p class="sub">Temperature controllers, vacuum gauges, cryocoolers and DAQ behind one small interface.</p>
+  <div class="cards">
+    <div class="card"><h3>One interface</h3><p>Every instrument is a <code>labdevices</code>: construct it, call <code>update()</code>, read gauges.</p></div>
+    <div class="card"><h3>The gauge is the cache</h3><p><code>update()</code> pushes values to Prometheus and <code>getGauge()</code> reads the last one back. No shadow state.</p></div>
+    <div class="card"><h3>Faults stay local</h3><p>The optional <code>DeviceManager</code> isolates failures, so one dead instrument never stops the others.</p></div>
+    <div class="card"><h3>Cheap to extend</h3><p>A new instrument is one class and one small Makefile.</p></div>
+  </div>
+</section>
+
+<section id="devices">
+  <h2>Supported devices</h2>
+  <p class="sub">Every gauge carries the label <code>{Component="&lt;device name&gt;"}</code>, so two devices can both expose a gauge named <code>A</code>.</p>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>Class</th><th>Instrument</th><th>Transport</th><th>Config keys</th><th>Build</th></tr></thead>
+    <tbody>
+      <tr><td><code>lakeshore336</code></td><td>Lakeshore 336 temperature controller</td><td><span class="tag eth">Ethernet</span></td><td><code>LSIP</code> <code>LSPORT</code></td><td>default</td></tr>
+      <tr><td><code>sunpowerMT</code></td><td>Sunpower cryocooler controller (MT)</td><td><span class="tag ser">Serial</span></td><td>port, baudrate constructor</td><td>default</td></tr>
+      <tr><td><code>sunpowerDS30</code></td><td>Sunpower DS30 cryocooler controller</td><td><span class="tag ser">Serial</span></td><td><code>DEVICE</code> <code>BAUDRATE</code></td><td>default</td></tr>
+      <tr><td><code>gauge972</code></td><td>MKS 972B vacuum gauge</td><td><span class="tag ser">Serial</span></td><td><code>PORT</code> <code>BAUDRATE</code></td><td>default</td></tr>
+      <tr><td><code>gauge972_e</code></td><td>MKS 972B vacuum gauge</td><td><span class="tag ecat">EtherCAT</span></td><td><code>NIC</code></td><td>default</td></tr>
+      <tr><td><code>dummydevice</code></td><td>Fake device for testing</td><td><span class="tag none">none</span></td><td>none</td><td>default</td></tr>
+      <tr><td><code>labjack</code></td><td>LabJack DAQ (T4/T7)</td><td><span class="tag eth">Ethernet / USB</span></td><td><code>IP</code> <code>LJACKTYPE</code> <code>CONNECTIONTYPE</code></td><td>optional, needs LJM SDK</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="callout"><strong>Interchangeable MKS drivers.</strong> <code>gauge972</code> (serial) and <code>gauge972_e</code> (EtherCAT) expose the same gauge name, <code>&lt;devicename&gt;_Pressure</code>, and the same public API. Swap one for the other without touching your code.</div>
+
+  <h3>Gauges</h3>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>Device</th><th>Gauges</th></tr></thead>
+    <tbody>
+      <tr><td><code>lakeshore336</code></td><td><code>A</code> <code>B</code> <code>C</code> <code>D</code> <code>D1</code>–<code>D5</code> <code>setpoint1</code>–<code>4</code> <code>heater1</code> <code>heater2</code> <code>analogueOut1</code> <code>analogueOut2</code></td></tr>
+      <tr><td><code>sunpowerMT</code> / <code>sunpowerDS30</code></td><td><code>VDC</code> <code>POWER_CMD</code> <code>TC</code> <code>RT</code> <code>WT</code> <code>VrmsOutA/B</code> <code>IrmsOutA/B</code> <code>PA</code> <code>PB</code>, and on the DS30 <code>C_ERROR</code> <code>NC_ERROR</code></td></tr>
+      <tr><td><code>gauge972</code> / <code>gauge972_e</code></td><td><code>&lt;devicename&gt;_Pressure</code></td></tr>
+      <tr><td><code>dummydevice</code></td><td><code>Dummy</code></td></tr>
+      <tr><td><code>labjack</code></td><td><code>&lt;devicename&gt;AIN0</code> <code>&lt;devicename&gt;AIN1</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="architecture">
+  <h2>Architecture</h2>
+  <p class="sub">Your application owns the registry. The library fills it.</p>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    subgraph app["Your application"]
+        direction TB
+        REG[("prometheus::Registry")]
+        EXP["prometheus::Exposer<br/>:9878"]
+        DM["DeviceManager<br/>(optional)"]
+    end
+    subgraph lib["liblabdev.so"]
+        direction TB
+        BASE["labdevices<br/>addGauge / setGauge / getGauge"]
+        D1["lakeshore336"]
+        D2["sunpowerDS30"]
+        D3["gauge972 / gauge972_e"]
+        D4["dummydevice"]
+    end
+    HW1(["Lakeshore 336"])
+    HW2(["Sunpower cooler"])
+    HW3(["MKS 972B"])
+    P["Prometheus server"]
+    DM -- "update()" --> BASE
+    BASE --- D1 & D2 & D3 & D4
+    D1 -- Ethernet --> HW1
+    D2 -- Serial --> HW2
+    D3 -- "Serial / EtherCAT" --> HW3
+    D1 & D2 & D3 & D4 -- "setGauge()" --> REG
+    REG --> EXP
+    P -- scrape --> EXP
+</pre>
+  </div>
+
+  <h3>Class hierarchy</h3>
+  <div class="diagram">
+<pre class="mermaid">
+classDiagram
+    class labdevices {
+        +string device_name
+        +update() void
+        +isOnline() bool
+        +getGauge(name) double
+        +getGaugeNames() vector~string~
+        #addGauge(name, description) bool
+        #setGauge(name, value) bool
+        #bool online
+    }
+    class serial {
+        +ouvrirport()
+        +ecrireport()
+        +lireport()
+        +communicate()
+    }
+    class ethernet_device {
+        +connect()
+        +set_connection_timeout()
+    }
+    labdevices &lt;|-- ethernet_device
+    ethernet_device &lt;|-- lakeshore336
+    labdevices &lt;|-- sunpowerMT
+    labdevices &lt;|-- sunpowerDS30
+    labdevices &lt;|-- gauge972
+    serial &lt;|-- sunpowerMT
+    serial &lt;|-- sunpowerDS30
+    serial &lt;|-- gauge972
+    labdevices &lt;|-- gauge972_e
+    labdevices &lt;|-- dummydevice
+    labdevices &lt;|-- labjack
+</pre>
+  </div>
+</section>
+
+<section id="quickstart">
+  <h2>Quick start</h2>
+  <p class="sub">You do not need <code>DeviceManager</code>. Poll a device yourself.</p>
+<pre><code>#include &lt;labdev/lakeshore336.h&gt;
+#include &lt;prometheus/exposer.h&gt;
+#include &lt;prometheus/registry.h&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+int main() {
+  prometheus::Exposer exposer{"0.0.0.0:9878"};
+  auto registry = std::make_shared&lt;prometheus::Registry&gt;();
+  exposer.RegisterCollectable(registry);
+
+  // IP, port, device name, extended inputs, registry
+  lakeshore336 ls("192.168.1.50", 7777, "D_Lakeshore", true, registry.get());
+
+  for (;;) {
+    ls.update();                    // read the instrument, push gauges
+    if (ls.isOnline())
+      std::cout &lt;&lt; "A = " &lt;&lt; ls.getGauge("A") &lt;&lt; " K\n";   // read back the cache
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+}</code></pre>
+  <p>Point Prometheus at <code>host:9878/metrics</code>. Link with:</p>
+<pre><code>g++ -std=c++17 app.cpp -o app \
+    -llabdev -luics -lsoem -lprometheus-cpp-pull -lprometheus-cpp-core -lpthread
+# -lsoem is only needed if you use gauge972_e</code></pre>
+</section>
+
+<section id="manager">
+  <h2>DeviceManager</h2>
+  <p class="sub">A ready-made polling loop for applications. The drivers never use it themselves.</p>
+  <p>Use it when you have several devices and want one background thread polling all of them at their own interval, fault isolation (a device that throws repeatedly is disabled instead of killing the loop), runtime control, and automatic online/offline logging for every device.</p>
+
+  <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+    participant App as Your application
+    participant DM as DeviceManager (thread)
+    participant Dev as labdevices::update()
+    participant Reg as Prometheus registry
+    App-&gt;&gt;DM: addDevice(dev, interval)
+    App-&gt;&gt;DM: start()
+    loop every poll interval, per device
+        DM-&gt;&gt;Dev: update()
+        alt reading OK
+            Dev-&gt;&gt;Reg: setGauge(name, value)
+            Note over Dev: online = true
+        else failure
+            Note over Dev: online = false
+        else throws
+            DM-&gt;&gt;DM: errorCount++ (disable after N)
+        end
+        DM-&gt;&gt;DM: log only if online state changed
+    end
+    App-&gt;&gt;Reg: scrape / getDeviceValue()
+</pre>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-pane="p1">Setup</button>
+    <button class="tab" data-pane="p2">Runtime control</button>
+    <button class="tab" data-pane="p3">API</button>
+  </div>
+
+  <div class="tabpane active" id="p1">
+<pre><code>auto exposer  = new prometheus::Exposer("0.0.0.0:9878");
+auto registry = std::make_shared&lt;prometheus::Registry&gt;();
+
+// default poll interval 5 s
+auto manager = new DeviceManager(registry.get(), std::chrono::milliseconds(5000));
+
+auto pressure  = std::make_shared&lt;gauge972_e&gt;("/opt/app/config/mks972b.cfg",
+                                              "D_Pressure", registry.get());
+auto lakeshore = std::make_shared&lt;lakeshore336&gt;("/opt/app/config/lakeshore.cfg",
+                                                 "D_Lakeshore", -1, true, registry.get());
+auto sunpower  = std::make_shared&lt;sunpowerDS30&gt;("/opt/app/config/sunpower.cfg",
+                                                 "D_Sunpower", registry.get());
+
+exposer-&gt;RegisterCollectable(registry);
+manager-&gt;addDevice(pressure);
+manager-&gt;addDevice(lakeshore, std::chrono::milliseconds(2000));  // custom interval
+manager-&gt;addDevice(sunpower);
+manager-&gt;start();</code></pre>
+  </div>
+
+  <div class="tabpane" id="p2">
+<pre><code>double p;
+if (manager-&gt;getDeviceValue("D_Pressure", "D_Pressure_Pressure", p) &amp;&amp;
+    manager-&gt;deviceOnline("D_Pressure"))
+  std::cout &lt;&lt; "pressure: " &lt;&lt; p &lt;&lt; " Torr\n";
+
+manager-&gt;disableDevice("D_Lakeshore");
+manager-&gt;setDevicePollInterval("D_Sunpower", std::chrono::milliseconds(10000));
+manager-&gt;enableDevice("D_Lakeshore");
+
+for (auto &amp;name : manager-&gt;getDeviceNames())
+  for (auto &amp;g : manager-&gt;getDeviceGaugeNames(name))
+    std::cout &lt;&lt; name &lt;&lt; " -&gt; " &lt;&lt; g &lt;&lt; "\n";
+
+manager-&gt;setErrorCallback([](const std::string &amp;dev, const std::string &amp;err) {
+  std::cerr &lt;&lt; dev &lt;&lt; ": " &lt;&lt; err &lt;&lt; "\n";
+});</code></pre>
+  </div>
+
+  <div class="tabpane" id="p3">
+  <div class="tbl">
+  <table>
+    <thead><tr><th>Method</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>addDevice</code> / <code>removeDevice</code></td><td>Register or drop a device. Interval <code>0</code> uses the default.</td></tr>
+      <tr><td><code>start</code> / <code>stop</code> / <code>isRunning</code></td><td>Control the polling thread.</td></tr>
+      <tr><td><code>enableDevice</code> / <code>disableDevice</code> / <code>isDeviceEnabled</code></td><td>Pause one device without removing it.</td></tr>
+      <tr><td><code>setDefaultPollInterval</code> / <code>setDevicePollInterval</code> / <code>getDevicePollingTime</code></td><td>Polling cadence.</td></tr>
+      <tr><td><code>setMaxErrorsBeforeDisable</code></td><td>Consecutive throws before auto-disable.</td></tr>
+      <tr><td><code>deviceOnline</code> / <code>deviceExist</code></td><td>Device state.</td></tr>
+      <tr><td><code>getDeviceValue</code> / <code>getDeviceGaugeNames</code></td><td>Last value read, no I/O.</td></tr>
+      <tr><td><code>getDeviceNames</code> / <code>getDeviceCount</code> / <code>getEnabledDeviceCount</code> / <code>getDeviceErrorCount</code></td><td>Inventory and health.</td></tr>
+      <tr><td><code>setErrorCallback</code></td><td>Be notified of device exceptions.</td></tr>
+      <tr><td><code>getDevice&lt;T&gt;</code></td><td>Typed access to call device-specific methods.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  </div>
+
+  <div class="callout"><strong>Thread safety.</strong> <code>getDevice&lt;T&gt;()</code> hands you the device, and what you call on it runs on <em>your</em> thread while <code>update()</code> may be running on the polling thread. The transports are not mutex protected. If the call does I/O, call <code>disableDevice(name)</code> first and <code>enableDevice(name)</code> afterwards.</div>
+</section>
+
+<section id="new-device">
+  <h2>Writing a new device</h2>
+  <p class="sub">One class, one Makefile.</p>
+  <ol>
+    <li>Create <code>src/devices/&lt;name&gt;/</code> with a Makefile copied from <code>lakeshore-336</code>.</li>
+    <li>Add the directory to both <code>all:</code> and <code>clean:</code> in <code>src/devices/Makefile</code>.</li>
+    <li>Derive from <code>labdevices</code> plus a transport (<code>ethernet_device</code>, <code>serial</code>, or nothing).</li>
+    <li>Call <code>addGauge(name, description)</code> for every reading <strong>in the constructor</strong>.</li>
+    <li>Override <code>update()</code>: <code>online = true</code> on entry, <code>setGauge(...)</code> per reading, <code>online = false</code> on failure. Return quickly.</li>
+    <li>Offer an explicit constructor and a config-file one using <code>cfg_get_int</code> / <code>cfg_get_string</code>.</li>
+  </ol>
+<pre><code>class mydevice : public labdevices, public serial {
+public:
+  mydevice(int port, int baudrate, std::string name, prometheus::Registry *reg)
+      : labdevices(name, reg) {
+    addGauge("Temperature", "Sensor temperature (K)");
+    status = ouvrirport(port, baudrate);
+  }
+
+  void update() override {
+    online = true;
+    std::string reply = communicate("TEMP?\r", 64, true);
+    if (exchange_status != VALID) { online = false; return; }
+    setGauge("Temperature", std::stod(reply));
+  }
+};</code></pre>
+
+  <h3>Logging</h3>
+  <p>A daily log goes to <code>/var/tmp/labdev/yyyymmdd.txt</code> (GMT, default level <code>LOG_INFO</code>). Readings and per-transaction I/O are never logged. Faults in polling loops use <code>labdev::log_latch</code>, which writes once when a fault starts and once when it clears.</p>
+<pre><code>#include &lt;labdev/labdev_log.h&gt;
+labdev::log_set_path("/var/log/myapp/labdev/");  // before constructing any device
+labdev::log_set_level(labdev::LOG_WARN);         // -1 silences the log</code></pre>
+</section>
+
+<section id="build">
+  <h2>Build and install</h2>
+  <p class="sub">Needs a C++17 compiler, prometheus-cpp and SOEM (submodules), and UICS. The optional LabJack device also needs the LJM SDK.</p>
+<pre><code>git clone --recurse-submodules https://github.com/espressjo/liblabdev &amp;&amp; cd liblabdev
+
+# once: dependencies
+cd external &amp;&amp; make clean all &amp;&amp; sudo make install &amp;&amp; cd ..
+
+make all            # builds into ./build
+make all            # a fully clean build needs this twice
+sudo make install   # /usr/local/lib and /usr/local/include</code></pre>
+  <div class="callout"><strong>Gotchas.</strong> A fully clean <code>build/</code> needs <code>make all</code> twice, because the root Makefile expands <code>$(wildcard build/*.o)</code> before anything is compiled. Stale <code>.o</code> files get linked in, so run <code>make clean</code> after removing or renaming a source file. <code>build/include/labdev.h</code> is generated, never edit it.</div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    MIT © 2026 espressjo ·
+    <a href="https://github.com/espressjo/liblabdev">GitHub</a> ·
+    <a href="https://github.com/espressjo/liblabdev/blob/main/SPEC.md">Specification</a>
+  </div>
+</footer>
+
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  const dark = !window.matchMedia("(prefers-color-scheme: light)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default", securityLevel: "strict" });
+</script>
+<script>
+  document.querySelectorAll(".tab").forEach(function (t) {
+    t.addEventListener("click", function () {
+      document.querySelectorAll(".tab").forEach(function (x) { x.classList.remove("active"); });
+      document.querySelectorAll(".tabpane").forEach(function (x) { x.classList.remove("active"); });
+      t.classList.add("active");
+      document.getElementById(t.dataset.pane).classList.add("active");
+    });
+  });
+</script>
+</body>
+</html>

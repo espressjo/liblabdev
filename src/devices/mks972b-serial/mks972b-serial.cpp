@@ -9,7 +9,7 @@ gauge972::gauge972(std::string configfile, std::string devicename = "",
     : labdevices(devicename, registry)
 
 {
-  timeout = -1;
+  init_gauge();
   int port = cfg_get_int(configfile, "PORT", -1);
   int baudrate = cfg_get_int(configfile, "BAUDRATE", 9600);
 
@@ -17,9 +17,20 @@ gauge972::gauge972(std::string configfile, std::string devicename = "",
 
   if (status != OK) {
     online = false;
+    labdev::log_error(device_name, "cannot open serial port " +
+                                       std::to_string(port) + " from " +
+                                       configfile + ", device offline");
   }
+}
 
-  addGauge("Pressure", "Pressure of the MKS972b");
+// Shared by both constructors. Mirrors gauge972_e: pressure starts at 0,
+// the device starts offline and the gauge is named "<devicename>_Pressure".
+void gauge972::init_gauge() {
+  timeout = -1;
+  pressure = 0.0;
+  online = false;
+  p_gauge = device_name + "_Pressure";
+  addGauge(p_gauge, "Pressure of the MKS972b");
 }
 
 gauge972::gauge972(int port, int baudrate, std::string devicename = "",
@@ -27,13 +38,14 @@ gauge972::gauge972(int port, int baudrate, std::string devicename = "",
     : labdevices(devicename, registry)
 
 {
-  timeout = -1;
+  init_gauge();
   status = ouvrirport(port, baudrate);
   if (status != OK) {
     online = false;
+    labdev::log_error(device_name, "cannot open serial port " +
+                                       std::to_string(port) +
+                                       ", device offline");
   }
-
-  addGauge("Pressure", "Pressure of the MKS972b");
 }
 void gauge972::set_timeout(int to_s) { timeout = to_s; }
 int gauge972::read_pressure(double *pressure) {
@@ -119,21 +131,19 @@ int gauge972::strip_ack(std::string ack, std::string *val)
 }
 void gauge972::update() {
 
-  // 1. Create a random device (seed)
-
-  // std::random_device rd;
-
-  // 2. Initialize a Mersenne Twister engine with the seed
-  // std::mt19937 gen(rd());
-
-  // 3. Define the distribution (range [min, max))
-  // std::uniform_real_distribution<double> dis(0.0,
-  std::cout << "ok" << std::endl;
-  double pressure = 0.0;
-  if (read_pressure(&pressure) == OK) {
+  double p = 0.0;
+  if (read_pressure(&p) == OK) {
+    pressure = p;
     online = true;
-    setGauge("Pressure", pressure);
+    setGauge(p_gauge, pressure);
+    if (reading_fault.failed()) {
+      reading_fault.clear(device_name + ": reading valid again");
+    }
   } else {
     online = false;
+    // Latched, so a dead gauge costs two lines per outage, not one per poll.
+    reading_fault.fail(device_name + ": no valid reply to PR4? on the serial "
+                                     "link, check cabling and power",
+                       labdev::LOG_WARN);
   }
 }

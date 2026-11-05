@@ -1,6 +1,7 @@
 #ifndef MKS972B_H
 #define MKS972B_H
 #include "labdev.h"
+#include "labdev_log.h"
 #include "labdevices.h"
 #include <ctype.h> /* tolower */
 #include <fcntl.h> /* open */
@@ -28,9 +29,15 @@ public:
   int read_cold_cathod(double *pressure);
   void update();
   void set_timeout(int to_s);
+  // Last pressure read by update(), same public member as gauge972_e.
+  double pressure;
 
 private:
+  void init_gauge();
   int timeout;
+  // Gauge name, "<devicename>_Pressure", same as gauge972_e.
+  std::string p_gauge;
+  labdev::log_latch reading_fault;
   int strip_ack(std::string ack, std::string *val);
 };
 
