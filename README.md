@@ -8,7 +8,7 @@
 
 `labdev.lib` builds `liblabdev.so`. It is a collection of device drivers (temperature controllers, vacuum gauges, cryocoolers, DAQ) that all derive from one small base class, `labdevices`. Each driver talks to its instrument over Ethernet, serial or EtherCAT, and pushes what it reads into a Prometheus gauge. Your application links `-llabdev`, exposes the registry, and Prometheus does the rest.
 
-📖 Project page: see [`docs/index.html`](docs/index.html) (GitHub Pages). Design details: [`SPEC.md`](SPEC.md).
+📖 Project page: see [`docs/index.html`](https://espressjo.github.io/liblabdev/) (GitHub Pages).
 
 ---
 
