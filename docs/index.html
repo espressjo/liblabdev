@@ -97,6 +97,7 @@
     <a href="#why">Why</a>
     <a href="#devices">Devices</a>
     <a href="#architecture">Architecture</a>
+    <a href="#cooler">Cooler</a>
     <a href="#quickstart">Quick start</a>
     <a href="#manager">DeviceManager</a>
     <a href="#new-device">New device</a>
@@ -140,10 +141,11 @@
     <thead><tr><th>Class</th><th>Instrument</th><th>Transport</th><th>Config keys</th><th>Build</th></tr></thead>
     <tbody>
       <tr><td><code>lakeshore336</code></td><td>Lakeshore 336 temperature controller</td><td><span class="tag eth">Ethernet</span></td><td><code>LSIP</code> <code>LSPORT</code></td><td>default</td></tr>
-      <tr><td><code>sunpowerMT</code></td><td>Sunpower cryocooler controller (MT)</td><td><span class="tag ser">Serial</span></td><td>port, baudrate constructor</td><td>default</td></tr>
+      <tr><td><code>sunpowerMT</code></td><td>Sunpower cryocooler controller (MT)</td><td><span class="tag ser">Serial</span></td><td><code>DEVICE</code> <code>BAUDRATE</code></td><td>default</td></tr>
       <tr><td><code>sunpowerDS30</code></td><td>Sunpower DS30 cryocooler controller</td><td><span class="tag ser">Serial</span></td><td><code>DEVICE</code> <code>BAUDRATE</code></td><td>default</td></tr>
       <tr><td><code>gauge972</code></td><td>MKS 972B vacuum gauge</td><td><span class="tag ser">Serial</span></td><td><code>PORT</code> <code>BAUDRATE</code></td><td>default</td></tr>
       <tr><td><code>gauge972_e</code></td><td>MKS 972B vacuum gauge</td><td><span class="tag ecat">EtherCAT</span></td><td><code>NIC</code></td><td>default</td></tr>
+      <tr><td><code>coolpak</code></td><td>Leybold COOLPAK 6000 helium compressor</td><td><span class="tag ser">Serial 4800 8N1</span></td><td><code>DEVICE</code> <code>BAUDRATE</code></td><td>default</td></tr>
       <tr><td><code>dummydevice</code></td><td>Fake device for testing</td><td><span class="tag none">none</span></td><td>none</td><td>default</td></tr>
       <tr><td><code>labjack</code></td><td>LabJack DAQ (T4/T7)</td><td><span class="tag eth">Ethernet / USB</span></td><td><code>IP</code> <code>LJACKTYPE</code> <code>CONNECTIONTYPE</code></td><td>optional, needs LJM SDK</td></tr>
     </tbody>
@@ -157,7 +159,9 @@
     <thead><tr><th>Device</th><th>Gauges</th></tr></thead>
     <tbody>
       <tr><td><code>lakeshore336</code></td><td><code>A</code> <code>B</code> <code>C</code> <code>D</code> <code>D1</code>–<code>D5</code> <code>setpoint1</code>–<code>4</code> <code>heater1</code> <code>heater2</code> <code>analogueOut1</code> <code>analogueOut2</code></td></tr>
-      <tr><td><code>sunpowerMT</code> / <code>sunpowerDS30</code></td><td><code>VDC</code> <code>POWER_CMD</code> <code>TC</code> <code>RT</code> <code>WT</code> <code>VrmsOutA/B</code> <code>IrmsOutA/B</code> <code>PA</code> <code>PB</code>, and on the DS30 <code>C_ERROR</code> <code>NC_ERROR</code></td></tr>
+      <tr><td><code>sunpowerDS30</code></td><td><code>VDC</code> <code>POWER_CMD</code> <code>TC</code> <code>RT</code> <code>WT</code> <code>VrmsOutA/B</code> <code>IrmsOutA/B</code> <code>PA</code> <code>PB</code> <code>C_ERROR</code> <code>NC_ERROR</code></td></tr>
+      <tr><td><code>sunpowerMT</code></td><td><code>Power_Measured</code> <code>Power_Commanded</code> <code>Coldhead_Temperature</code> <code>Reject_Temperature</code> <code>Target_Temperature</code> <code>Cooler</code></td></tr>
+      <tr><td><code>coolpak</code></td><td><code>Coolpak_Version</code> <code>Coolpak_Hours</code> <code>Coolpak_Delay</code> <code>Coolpak_Command_Status</code> <code>Coolpak_Running</code> <code>Coolpak_Active_Errors</code> <code>Coolpak_Error_Mask</code> <code>Coolpak_Logged_Errors</code><br><small><code>Coolpak_Error_Mask</code>: error code n is bit n-1, so errors 1 and 3 give 5.</small></td></tr>
       <tr><td><code>gauge972</code> / <code>gauge972_e</code></td><td><code>&lt;devicename&gt;_Pressure</code></td></tr>
       <tr><td><code>dummydevice</code></td><td><code>Dummy</code></td></tr>
       <tr><td><code>labjack</code></td><td><code>&lt;devicename&gt;AIN0</code> <code>&lt;devicename&gt;AIN1</code></td></tr>
@@ -184,6 +188,7 @@ flowchart LR
         D1["lakeshore336"]
         D2["sunpowerDS30"]
         D3["gauge972 / gauge972_e"]
+        D5["coolpak"]
         D4["dummydevice"]
     end
     HW1(["Lakeshore 336"])
@@ -234,10 +239,31 @@ classDiagram
     serial &lt;|-- sunpowerDS30
     serial &lt;|-- gauge972
     labdevices &lt;|-- gauge972_e
+    labdevices &lt;|-- coolpak
+    serial &lt;|-- coolpak
     labdevices &lt;|-- dummydevice
     labdevices &lt;|-- labjack
 </pre>
   </div>
+</section>
+
+<section id="cooler">
+  <h2>Cooler control</h2>
+  <p class="sub">Three devices switch their cooler or compressor with the same method names.</p>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>Device</th><th>Methods</th><th>Success means</th></tr></thead>
+    <tbody>
+      <tr><td><code>sunpowerDS30</code></td><td><code>setCoolerOn()</code> / <code>setCoolerOff()</code></td><td>the command got a reply</td></tr>
+      <tr><td><code>sunpowerMT</code></td><td><code>setCoolerOn()</code> / <code>setCoolerOff()</code></td><td>the reply confirms ON / OFF (old <code>set_cooler_on/off()</code> still work)</td></tr>
+      <tr><td><code>coolpak</code></td><td><code>setCoolerOn()</code> / <code>setCoolerOff()</code></td><td>the reply confirms the new state; <code>SYSTEM ERROR</code> gives <code>false</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+<pre><code>auto cp = manager-&gt;getDevice&lt;coolpak&gt;("D_Coolpak");
+if (cp &amp;&amp; !cp-&gt;setCoolerOn())
+  std::cerr &lt;&lt; "compressor did not start\n";</code></pre>
+  <div class="callout"><strong>Concurrency.</strong> <code>coolpak</code> serialises its serial exchanges with a mutex, so the command can be sent while the device is being polled. For the sunpower devices, call <code>disableDevice(name)</code> first and <code>enableDevice(name)</code> afterwards.</div>
 </section>
 
 <section id="quickstart">

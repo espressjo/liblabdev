@@ -37,10 +37,11 @@
 | Class | Instrument | Transport | Config keys | Default build |
 |---|---|---|---|---|
 | `lakeshore336` | Lakeshore 336 temperature controller | Ethernet | `LSIP`, `LSPORT` | ✅ |
-| `sunpowerMT` | Sunpower cryocooler controller (MT) | Serial | none (`port, baudrate` constructor) | ✅ |
+| `sunpowerMT` | Sunpower cryocooler controller (MT) | Serial | `DEVICE`, `BAUDRATE` | ✅ |
 | `sunpowerDS30` | Sunpower DS30 cryocooler controller | Serial | `DEVICE`, `BAUDRATE` | ✅ |
 | `gauge972` | MKS 972B vacuum gauge | Serial | `PORT`, `BAUDRATE` | ✅ |
 | `gauge972_e` | MKS 972B vacuum gauge | EtherCAT (SOEM) | `NIC` | ✅ |
+| `coolpak` | Leybold COOLPAK 6000 helium compressor | Serial (4800 8N1) | `DEVICE`, `BAUDRATE` | ✅ |
 | `dummydevice` | Fake device for testing | none | none | ✅ |
 | `labjack` | LabJack DAQ (T4/T7) | Ethernet / USB via LJM | `IP`, `LJACKTYPE`, `CONNECTIONTYPE` | ❌ needs the LJM SDK, see [`src/devices/labjack/README.md`](src/devices/labjack/README.md) |
 
@@ -54,7 +55,9 @@ Both MKS 972B drivers are interchangeable for a consumer. They expose the same g
 | Device | Gauges |
 |---|---|
 | `lakeshore336` | `A`, `B`, `C`, `D`, `D1`–`D5`, `setpoint1`–`setpoint4`, `heater1`, `heater2`, `analogueOut1`, `analogueOut2` |
-| `sunpowerMT`, `sunpowerDS30` | `VDC`, `POWER_CMD`, `TC`, `RT`, `WT`, `VrmsOutA`, `IrmsOutA`, `PA`, `PB`, `VrmsOutB`, `IrmsOutB`, and on the DS30 also `C_ERROR`, `NC_ERROR` |
+| `sunpowerDS30` | `VDC`, `POWER_CMD`, `TC`, `RT`, `WT`, `VrmsOutA`, `IrmsOutA`, `PA`, `PB`, `VrmsOutB`, `IrmsOutB`, `C_ERROR`, `NC_ERROR` |
+| `sunpowerMT` | `Power_Measured`, `Power_Commanded`, `Coldhead_Temperature`, `Reject_Temperature`, `Target_Temperature`, `Cooler` |
+| `coolpak` | `Coolpak_Version`, `Coolpak_Hours`, `Coolpak_Delay`, `Coolpak_Command_Status`, `Coolpak_Running`, `Coolpak_Active_Errors`, `Coolpak_Error_Mask`, `Coolpak_Logged_Errors` (`Coolpak_Error_Mask`: error code n is bit n-1, so errors 1 and 3 give 5) |
 | `gauge972`, `gauge972_e` | `<devicename>_Pressure` |
 | `dummydevice` | `Dummy` |
 | `labjack` | `<devicename>AIN0`, `<devicename>AIN1` |
@@ -78,6 +81,7 @@ flowchart LR
         D1["lakeshore336"]
         D2["sunpowerDS30"]
         D3["gauge972 / gauge972_e"]
+        D5["coolpak"]
         D4["dummydevice"]
     end
 
@@ -129,6 +133,8 @@ classDiagram
     serial <|-- sunpowerDS30
     serial <|-- gauge972
     labdevices <|-- gauge972_e
+    labdevices <|-- coolpak
+    serial <|-- coolpak
     labdevices <|-- dummydevice
     labdevices <|-- labjack
 ```
@@ -282,7 +288,25 @@ manager->setErrorCallback([](const std::string &dev, const std::string &err) {
 | `setErrorCallback(fn)` | Be notified of device exceptions. |
 | `getDevice<T>(name)` | Typed access to call device-specific methods. |
 
-> **Thread-safety warning.** `getDevice<T>()` hands you the device, and what you call on it runs on **your** thread while `update()` may be running on the polling thread. The transports are not mutex protected. If the call does I/O (for example `lakeshore336::setp_1()` or `sunpowerDS30::setCoolerOn()`), call `disableDevice(name)` first and `enableDevice(name)` afterwards.
+> **Thread-safety warning.** `getDevice<T>()` hands you the device, and what you call on it runs on **your** thread while `update()` may be running on the polling thread. The transports are not mutex protected. If the call does I/O (for example `lakeshore336::setp_1()` or `sunpowerDS30::setCoolerOn()`), call `disableDevice(name)` first and `enableDevice(name)` afterwards. `coolpak` is the exception: it serialises its own serial exchanges with a mutex, so its `setCoolerOn()` / `setCoolerOff()` can be called while it is being polled.
+
+## Cooler control
+
+Three devices can switch their cooler or compressor on and off. All use the same method names:
+
+| Device | Methods | Success means |
+|---|---|---|
+| `sunpowerDS30` | `setCoolerOn()` / `setCoolerOff()` | the command got a reply |
+| `sunpowerMT` | `setCoolerOn()` / `setCoolerOff()` | the reply confirms `ON` / `OFF` (the old `set_cooler_on/off()` still work) |
+| `coolpak` | `setCoolerOn()` / `setCoolerOff()` | the reply confirms the new state (`SYS1` / `SYS0`); `SYSTEM ERROR` gives `false` |
+
+```cpp
+auto cp = manager->getDevice<coolpak>("D_Coolpak");
+if (cp && !cp->setCoolerOn())
+  std::cerr << "compressor did not start\n";
+```
+
+For `sunpowerDS30` and `sunpowerMT`, disable the device in the manager around the call (see the warning above). `coolpak` needs no such step.
 
 ## Writing a new device
 
@@ -355,6 +379,7 @@ labdev.lib/
 │   └── devices/         one directory per instrument, each with its own Makefile
 │       ├── lakeshore-336/   sunpowerMT/   sunpowerDS30/
 │       ├── mks972b-serial/  mks972b-ethercat/
+│       ├── coolpak/
 │       ├── dummy-device/    labjack/ (optional, needs LJM)
 ├── external/            SOEM and prometheus-cpp submodules
 ├── extra/makeheader.py  generates build/include/labdev.h
